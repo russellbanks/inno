@@ -1,0 +1,50 @@
+name: CI
+
+on: [ push, pull_request ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Rust ${{ matrix.channel }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [ stable, beta, nightly ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust ${{ matrix.channel }}
+        uses: moonrepo/setup-rust@v1
+        with:
+          bins: cargo-hack
+          channel: ${{ matrix.channel }}
+
+      - name: Test powerset
+        run: cargo hack test --feature-powerset --optional-deps
+
+      - name: Publish dry run
+        run: cargo publish --dry-run
+
+  msrv:
+    name: MSRV
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install cargo-msrv
+        uses: moonrepo/setup-rust@v1
+        with:
+          bins: cargo-msrv
+
+      - name: Verify MSRV
+        run: cargo msrv verify
+
+      - name: Find actual MSRV
+        if: steps.verify.outcome == 'failure'
+        run: cargo msrv find

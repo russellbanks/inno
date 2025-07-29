@@ -1,27 +1,34 @@
 [package]
-name = "inno"
-version = "0.1.0"
+name = "innex"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[[bin]]
+path = "cli/src/main.rs"
+name = "innex"
+
+[workspace]
+members = ["core"]
+
+[workspace.package]
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.88"
-description = "Library for reading Inno Setup executables"
 repository = "https://github.com/russellbanks/inno"
-readme = "README.md"
 license = "MIT OR Apache-2.0"
-keywords = ["innosetup"]
 
 [dependencies]
-bitflags = { version = "2", default-features = false }
-codepage = { version = "0.1", default-features = false }
-crc32fast = { version = "1", default-features = false }
-encoding_rs = { version = "0.8.29", default-features = false, features = ["alloc"] }
-flate2 = { version = "1", default-features = false, features = ["zlib"] }
-itertools = { version = "0.14.0", default-features = false }
-liblzma = { version = "0.4", default-features = false, features = ["bindgen"] }
-thiserror = { version = "2", default-features = false }
-zerocopy = { version = "0.8", default-features = false, features = ["derive", "std"] }
-
-[dev-dependencies]
-rstest = "0.25"
+anstream = "0.6"
+clap = { version = "4", features = ["derive"] }
+inno = { version = "0.2", path = "core" }
 
 [features]
-static-lzma = ["liblzma/static"]
+static-lzma = ["inno/static-lzma"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true

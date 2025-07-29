@@ -25,10 +25,14 @@ jobs:
           channel: ${{ matrix.channel }}
 
       - name: Test powerset
-        run: cargo hack test --feature-powerset --optional-deps
+        run: |
+          cargo hack --package inno test --feature-powerset --optional-deps
+          cargo hack --package innex test --feature-powerset --optional-deps
 
       - name: Publish dry run
-        run: cargo publish --dry-run
+        run: |
+          cargo publish --package inno --dry-run
+          cargo publish --package innex --dry-run
 
   msrv:
     name: MSRV

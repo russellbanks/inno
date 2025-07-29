@@ -1,0 +1,31 @@
+[package]
+name = "inno"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Library for reading Inno Setup executables"
+repository.workspace = true
+readme = "../README.md"
+license.workspace = true
+keywords = ["innosetup", "installer"]
+
+[dependencies]
+bitflags = { version = "2", default-features = false }
+chrono = { version = "0.4.41", default-features = false, optional = true }
+codepage = { version = "0.1", default-features = false }
+crc32fast = { version = "1", default-features = false }
+encoding_rs = { version = "0.8.29", default-features = false, features = ["alloc"] }
+flate2 = { version = "1", default-features = false, features = ["zlib"] }
+itertools = { version = "0.14", default-features = false }
+liblzma = { version = "0.4", default-features = false, features = ["bindgen"] }
+nt-time = { version = "0.12", default-features = false }
+thiserror = { version = "2", default-features = false }
+zerocopy = { version = "0.8", default-features = false, features = ["derive", "std"] }
+
+[features]
+chrono = ["dep:chrono", "nt-time/chrono"]
+lzma-static = ["liblzma/static"]
+
+[dev-dependencies]
+rstest = "0.25"
+

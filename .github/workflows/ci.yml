@@ -25,10 +25,12 @@ jobs:
           channel: ${{ matrix.channel }}
 
       - name: Test powerset
-        run: cargo hack test --feature-powerset --optional-deps
+        run: |
+          cargo hack --package inno test --feature-powerset --optional-deps
+          cargo hack --package innex test --feature-powerset --optional-deps
 
       - name: Publish dry run
-        run: cargo publish --dry-run
+        run: cargo publish --package inno --dry-run
 
   msrv:
     name: MSRV
@@ -43,8 +45,13 @@ jobs:
           bins: cargo-msrv
 
       - name: Verify MSRV
-        run: cargo msrv verify
+        id: verify
+        run: |
+          cargo msrv verify -- cargo check --package inno
+          cargo msrv verify -- cargo check --package innex
 
       - name: Find actual MSRV
         if: steps.verify.outcome == 'failure'
-        run: cargo msrv find
+        run: |
+          cargo msrv find -- --package inno
+          cargo msrv find -- --package innex

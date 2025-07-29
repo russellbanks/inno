@@ -11,7 +11,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-inno = "0.1"
+inno = "0.2"
 ```
 
 ## Example

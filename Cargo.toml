@@ -21,7 +21,7 @@ thiserror = { version = "2", default-features = false }
 zerocopy = { version = "0.8", default-features = false, features = ["derive", "std"] }
 
 [dev-dependencies]
-rstest = "0.25"
+rstest = "0.26"
 
 [features]
 static-lzma = ["liblzma/static"]

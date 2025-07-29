@@ -1,23 +1,23 @@
 use std::{fmt, io};
 
-use encoding_rs::Encoding;
-
-use crate::encoding::InnoValue;
+use crate::{read::ReadBytesExt, string::PascalString};
 
 #[derive(Clone, Debug, Default)]
-pub struct Permission(String);
+pub struct Permission(PascalString);
 
 impl Permission {
-    pub fn read_from<R: io::Read>(reader: &mut R, codepage: &'static Encoding) -> io::Result<Self> {
-        InnoValue::string_from(reader, codepage)
-            .map(Option::unwrap_or_default)
-            .map(Permission)
+    pub fn read<R>(read: &mut R) -> io::Result<Self>
+    where
+        R: io::Read,
+    {
+        read.read_pascal_string()
+            .map(|str| Self(str.unwrap_or_default()))
     }
 
     /// Extracts a string slice containing the entire `Permission`.
     #[must_use]
     #[inline]
-    pub const fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
 }

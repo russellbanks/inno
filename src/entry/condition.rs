@@ -2,47 +2,89 @@ use std::io::{Read, Result};
 
 use encoding_rs::Encoding;
 
-use crate::{encoding::InnoValue, version::InnoVersion};
+use crate::{read::ReadBytesExt, version::InnoVersion};
 
 #[derive(Clone, Debug, Default)]
 pub struct Condition {
-    pub components: Option<String>,
-    pub tasks: Option<String>,
-    pub languages: Option<String>,
-    pub check: Option<String>,
-    pub after_install: Option<String>,
-    pub before_install: Option<String>,
+    components: Option<String>,
+    tasks: Option<String>,
+    languages: Option<String>,
+    check: Option<String>,
+    after_install: Option<String>,
+    before_install: Option<String>,
 }
 
 impl Condition {
-    pub fn read_from<R: Read>(
-        mut src: R,
+    pub fn read<R: Read>(
+        mut reader: R,
         codepage: &'static Encoding,
         version: InnoVersion,
     ) -> Result<Self> {
         let mut condition = Self::default();
 
-        if version >= (2, 0, 0) || (version.is_isx() && version >= (1, 3, 8)) {
-            condition.components = InnoValue::string_from(&mut src, codepage)?;
+        if version >= 2 || (version.is_isx() && version >= (1, 3, 8)) {
+            condition.components = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        if version >= (2, 0, 0) || (version.is_isx() && version >= (1, 3, 17)) {
-            condition.tasks = InnoValue::string_from(&mut src, codepage)?;
+        if version >= 2 || (version.is_isx() && version >= (1, 3, 17)) {
+            condition.tasks = reader.read_decoded_pascal_string(codepage)?;
         }
 
         if version >= (4, 0, 1) {
-            condition.languages = InnoValue::string_from(&mut src, codepage)?;
+            condition.languages = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        if version >= (4, 0, 0) || (version.is_isx() && version >= (1, 3, 24)) {
-            condition.check = InnoValue::string_from(&mut src, codepage)?;
+        if version >= 4 || (version.is_isx() && version >= (1, 3, 24)) {
+            condition.check = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        if version >= (4, 1, 0) {
-            condition.after_install = InnoValue::string_from(&mut src, codepage)?;
-            condition.before_install = InnoValue::string_from(&mut src, codepage)?;
+        if version >= 4.1 {
+            condition.after_install = reader.read_decoded_pascal_string(codepage)?;
+            condition.before_install = reader.read_decoded_pascal_string(codepage)?;
         }
 
         Ok(condition)
+    }
+
+    /// Returns the components as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn as_str(&self) -> Option<&str> {
+        self.components.as_deref()
+    }
+
+    /// Returns the tasks as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn tasks(&self) -> Option<&str> {
+        self.tasks.as_deref()
+    }
+
+    /// Returns the languages as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn languages(&self) -> Option<&str> {
+        self.languages.as_deref()
+    }
+
+    /// Returns the check condition as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn check(&self) -> Option<&str> {
+        self.check.as_deref()
+    }
+
+    /// Returns the after install condition as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn after_install(&self) -> Option<&str> {
+        self.after_install.as_deref()
+    }
+
+    /// Returns the before install condition as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn before_install(&self) -> Option<&str> {
+        self.before_install.as_deref()
     }
 }

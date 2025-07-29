@@ -80,94 +80,96 @@ where
 
 pub mod read_flags {
     macro_rules! read_flags {
-        ($reader_init:expr, $(,)?) => {{
-            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-            flag_reader.finalize()
-        }};
+    // Entry point: no flags
+    ($reader_init:expr $(,)?) => {{
+        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+        flag_reader.finalize()
+    }};
 
-        ($reader_init:expr, [$($flags:expr),+ $(,)?]) => {{
-            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-            flag_reader.add([$($flags),+])?;
-            flag_reader.finalize()
-        }};
+    // Entry point: list of flags
+    ($reader_init:expr, [$($flags:expr),+ $(,)?]) => {{
+        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+        flag_reader.add([$($flags),+])?;
+        flag_reader.finalize()
+    }};
 
-        ($reader_init:expr, [$($flags:expr),+ $(,)?], $($rest:tt)*) => {{
-            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-            flag_reader.add([$($flags),+])?;
-            crate::header::flag_reader::read_flags::read_flags_internal!(flag_reader, $($rest)*)
-        }};
+    // Entry point: list followed by more
+    ($reader_init:expr, [$($flags:expr),+ $(,)?], $($rest:tt)+) => {{
+        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+        flag_reader.add([$($flags),+])?;
+        read_flags!(@internal flag_reader, $($rest)+)
+    }};
 
-        ($reader_init:expr, if $cond:expr => $flag:expr) => {{
-            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-            if $cond {
-                flag_reader.add($flag)?;
-            }
-            flag_reader.finalize()
-        }};
-
-        ($reader_init:expr, if $cond:expr => $flag:expr, $($rest:tt)*) => {{
-            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-            if $cond {
-                flag_reader.add($flag)?;
-            }
-            crate::header::flag_reader::read_flags::::read_flags_internal!(flag_reader, $($rest)*)
-        }};
-
-        ($reader_init:expr, $flag:expr) => {{
-            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+    // Entry point: if condition
+    ($reader_init:expr, if $cond:expr => $flag:expr $(,)?) => {{
+        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+        if $cond {
             flag_reader.add($flag)?;
-            flag_reader.finalize()
-        }};
+        }
+        flag_reader.finalize()
+    }};
 
-        ($reader_init:expr, $flag:expr, $($rest:tt)*) => {{
-            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+    // Entry point: if condition followed by more
+    ($reader_init:expr, if $cond:expr => $flag:expr, $($rest:tt)+) => {{
+        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+        if $cond {
             flag_reader.add($flag)?;
-            crate::header::flag_reader::read_flags::read_flags_internal!(flag_reader, $($rest)*)
-        }};
-    }
+        }
+        read_flags!(@internal flag_reader, $($rest)+)
+    }};
 
-    macro_rules! read_flags_internal {
-        ($reader:expr) => {
-            $reader.finalize()
-        };
+    // Entry point: single flag
+    ($reader_init:expr, $flag:expr $(,)?) => {{
+        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+        flag_reader.add($flag)?;
+        flag_reader.finalize()
+    }};
 
-        ($reader:expr, [$($flags:expr),+ $(,)?]) => {{
-            $reader.add([$($flags),+])?;
-            $reader.finalize()
-        }};
+    // Entry point: single flag with more
+    ($reader_init:expr, $flag:expr, $($rest:tt)+) => {{
+        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+        flag_reader.add($flag)?;
+        read_flags!(@internal flag_reader, $($rest)+)
+    }};
 
-        ($reader:expr, [$($flags:expr),+ $(,)?], $($rest:tt)*) => {{
-            $reader.add([$($flags),+])?;
-            crate::header::flag_reader::read_flags::read_flags_internal!($reader, $($rest)*)
-        }};
+    // === Internal recursion ===
 
-        ($reader:expr, if $cond:expr => $flag:expr) => {{
-            if $cond {
-                $reader.add($flag)?;
-            }
-            $reader.finalize()
-        }};
+    (@internal $reader:ident, [$($flags:expr),+ $(,)?] $(,)?) => {{
+        $reader.add([$($flags),+])?;
+        $reader.finalize()
+    }};
 
-        ($reader:expr, if $cond:expr => $flag:expr, $($rest:tt)*) => {{
-            if $cond {
-                $reader.add($flag)?;
-            }
-            crate::header::flag_reader::read_flags::read_flags_internal!($reader, $($rest)*)
-        }};
+    (@internal $reader:ident, [$($flags:expr),+ $(,)?], $($rest:tt)+) => {{
+        $reader.add([$($flags),+])?;
+        read_flags!(@internal $reader, $($rest)+)
+    }};
 
-        ($reader:expr, $flag:expr) => {{
+    (@internal $reader:ident, if $cond:expr => $flag:expr $(,)?) => {{
+        if $cond {
             $reader.add($flag)?;
-            $reader.finalize()
-        }};
+        }
+        $reader.finalize()
+    }};
 
-        ($reader:expr, $flag:expr, $($rest:tt)*) => {{
+    (@internal $reader:ident, if $cond:expr => $flag:expr, $($rest:tt)+) => {{
+        if $cond {
             $reader.add($flag)?;
-            crate::header::flag_reader::read_flags::read_flags_internal!($reader, $($rest)*)
-        }};
-    }
+        }
+        read_flags!(@internal $reader, $($rest)+)
+    }};
+
+    (@internal $reader:ident, $flag:expr $(,)?) => {{
+        $reader.add($flag)?;
+        $reader.finalize()
+    }};
+
+    (@internal $reader:ident, $flag:expr, $($rest:tt)+) => {{
+        $reader.add($flag)?;
+        read_flags!(@internal $reader, $($rest)+)
+    }};
+}
 
     pub(crate) use read_flags;
-    pub(crate) use read_flags_internal;
 }
 
 #[cfg(test)]

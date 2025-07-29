@@ -1,4 +1,38 @@
+/*!
+A library for reading and parsing Inno Setup installers.
+
+# Usage
+
+This crate is [on crates.io](https://crates.io/crates/inno) and can be used by adding `inno` to your
+dependencies in your project's `Cargo.toml`:
+
+```toml
+[dependencies]
+inno = "0.2"
+```
+
+# Examples
+
+## Basic usage
+
+```rust
+use inno::Inno;
+use std::fs::File;
+
+fn main() -> Result<(), inno::error::InnoError> {
+    let file = File::open("path/to/your/setup.exe")?;
+    let inno = Inno::new(file)?;
+
+    println!("Inno Setup version: {}", inno.version);
+    println!("Installer languages: {:?}", inno.languages);
+
+    Ok(())
+}
+*/
+
+#![doc(html_root_url = "https://docs.rs/inno")]
 #![allow(dead_code)]
+extern crate core;
 
 mod compression;
 mod encoding;
@@ -9,6 +43,7 @@ mod loader;
 mod lzma_stream_header;
 mod pe;
 mod read;
+pub mod string;
 pub mod version;
 mod windows_version;
 mod wizard;
@@ -20,7 +55,8 @@ use std::{
 
 use encoding_rs::{UTF_16LE, WINDOWS_1252};
 use entry::{
-    Component, Directory, File, Icon, Ini, Language, Message, Permission, Registry, Task, Type,
+    Component, DeleteEntry, Directory, File, Icon, Ini, Language, Message, Permission,
+    RegistryEntry, RunEntry, Task, Type,
 };
 use error::InnoError;
 use header::Header;
@@ -49,7 +85,11 @@ pub struct Inno {
     pub files: Vec<File>,
     pub icons: Vec<Icon>,
     pub ini_entries: Vec<Ini>,
-    pub registries: Vec<Registry>,
+    pub registry_entries: Vec<RegistryEntry>,
+    pub delete_entries: Vec<DeleteEntry>,
+    pub uninstall_delete_entries: Vec<DeleteEntry>,
+    pub run_entries: Vec<RunEntry>,
+    pub uninstall_run_entries: Vec<RunEntry>,
 }
 
 impl Inno {
@@ -57,10 +97,11 @@ impl Inno {
     where
         R: Read + Seek,
     {
-        let setup_loader = SetupLoader::read_from(&mut reader)?;
+        let setup_loader =
+            SetupLoader::read_from(&mut reader).map_err(|_| InnoError::NotInnoFile)?;
 
         // Seek to Inno header
-        reader.seek(SeekFrom::Start(setup_loader.header_offset.into()))?;
+        reader.seek(SeekFrom::Start(setup_loader.header_offset().unsigned_abs()))?;
 
         let inno_version = InnoVersion::read_from(&mut reader)?;
 
@@ -70,48 +111,46 @@ impl Inno {
 
         let mut reader = InnoBlockReader::get(&mut reader, inno_version)?;
 
-        let mut codepage = if inno_version.is_unicode() {
-            UTF_16LE
-        } else {
-            WINDOWS_1252
-        };
-
-        let header = Header::read_from(&mut reader, codepage, inno_version)?;
+        let mut header = Header::read(&mut reader, inno_version)?;
 
         let languages = (0..header.language_count)
-            .map(|_| Language::read_from(&mut reader, codepage, &inno_version))
+            .map(|_| Language::read(&mut reader, inno_version))
             .collect::<io::Result<Vec<_>>>()?;
 
-        if !inno_version.is_unicode() {
-            codepage = languages
+        let codepage = if inno_version.is_unicode() {
+            UTF_16LE
+        } else {
+            languages
                 .iter()
-                .map(|language| language.codepage)
+                .map(Language::codepage)
                 .find_or_first(|&codepage| codepage == WINDOWS_1252)
-                .unwrap_or(WINDOWS_1252);
-        }
+                .unwrap_or(WINDOWS_1252)
+        };
 
-        if inno_version < (4, 0, 0) {
-            Wizard::read_from(&mut reader, inno_version, &header)?;
+        header.decode(codepage);
+
+        if inno_version < 4 {
+            Wizard::read(&mut reader, inno_version, &header)?;
         }
 
         let messages = (0..header.message_count)
-            .map(|_| Message::read_from(&mut reader, &languages, codepage))
+            .map(|_| Message::read(&mut reader, &languages, codepage))
             .collect::<io::Result<Vec<_>>>()?;
 
         let permissions = (0..header.permission_count)
-            .map(|_| Permission::read_from(&mut reader, codepage))
+            .map(|_| Permission::read(&mut reader))
             .collect::<io::Result<Vec<_>>>()?;
 
         let type_entries = (0..header.type_count)
-            .map(|_| Type::read_from(&mut reader, codepage, inno_version))
+            .map(|_| Type::read(&mut reader, codepage, inno_version))
             .collect::<io::Result<Vec<_>>>()?;
 
         let components = (0..header.component_count)
-            .map(|_| Component::read_from(&mut reader, codepage, inno_version))
+            .map(|_| Component::read(&mut reader, codepage, inno_version))
             .collect::<io::Result<Vec<_>>>()?;
 
         let tasks = (0..header.task_count)
-            .map(|_| Task::read_from(&mut reader, codepage, inno_version))
+            .map(|_| Task::read(&mut reader, codepage, inno_version))
             .collect::<io::Result<Vec<_>>>()?;
 
         let directories = (0..header.directory_count)
@@ -119,20 +158,40 @@ impl Inno {
             .collect::<io::Result<Vec<_>>>()?;
 
         let files = (0..header.file_count)
-            .map(|_| File::read_from(&mut reader, codepage, inno_version))
+            .map(|_| File::read(&mut reader, codepage, inno_version))
             .collect::<io::Result<Vec<_>>>()?;
 
         let icons = (0..header.icon_count)
-            .map(|_| Icon::read_from(&mut reader, codepage, inno_version))
+            .map(|_| Icon::read(&mut reader, codepage, inno_version))
             .collect::<io::Result<Vec<_>>>()?;
 
         let ini_entries = (0..header.ini_entry_count)
-            .map(|_| Ini::read_from(&mut reader, codepage, inno_version))
+            .map(|_| Ini::read(&mut reader, codepage, inno_version))
             .collect::<io::Result<Vec<_>>>()?;
 
-        let registries = (0..header.registry_entry_count)
-            .map(|_| Registry::read_from(&mut reader, codepage, inno_version))
+        let registry_entries = (0..header.registry_entry_count)
+            .map(|_| RegistryEntry::read(&mut reader, codepage, inno_version))
             .collect::<io::Result<Vec<_>>>()?;
+
+        let delete_entries = (0..header.delete_entry_count)
+            .map(|_| DeleteEntry::read(&mut reader, codepage, inno_version))
+            .collect::<io::Result<Vec<_>>>()?;
+
+        let uninstall_delete_entries = (0..header.uninstall_delete_entry_count)
+            .map(|_| DeleteEntry::read(&mut reader, codepage, inno_version))
+            .collect::<io::Result<Vec<_>>>()?;
+
+        let run_entries = (0..header.run_entry_count)
+            .map(|_| RunEntry::read(&mut reader, codepage, inno_version))
+            .collect::<io::Result<Vec<_>>>()?;
+
+        let uninstall_run_entries = (0..header.uninstall_run_entry_count)
+            .map(|_| RunEntry::read(&mut reader, codepage, inno_version))
+            .collect::<io::Result<Vec<_>>>()?;
+
+        if inno_version < 4 {
+            Wizard::read(&mut reader, inno_version, &header)?;
+        }
 
         Ok(Self {
             setup_loader,
@@ -148,7 +207,11 @@ impl Inno {
             files,
             icons,
             ini_entries,
-            registries,
+            registry_entries,
+            delete_entries,
+            uninstall_delete_entries,
+            run_entries,
+            uninstall_run_entries,
         })
     }
 }

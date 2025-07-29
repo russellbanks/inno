@@ -13,16 +13,39 @@ struct Version {
 }
 
 impl Version {
+    /// Returns the major version number.
+    #[must_use]
+    #[inline]
+    pub const fn major(&self) -> u8 {
+        self.major
+    }
+
+    /// Returns the minor version number.
+    #[must_use]
+    #[inline]
+    pub const fn minor(&self) -> u8 {
+        self.minor
+    }
+
+    /// Returns the build number.
+    #[must_use]
+    #[inline]
+    pub const fn build(&self) -> u16 {
+        self.build
+    }
+
     fn read_from<R>(src: &mut R, inno_version: InnoVersion) -> io::Result<Self>
     where
         R: io::Read,
     {
         let mut version = Self::default();
+
         if inno_version >= (1, 3, 19) {
             version.build = src.read_u16::<LE>()?;
         }
         version.minor = src.read_u8()?;
         version.major = src.read_u8()?;
+
         Ok(version)
     }
 }

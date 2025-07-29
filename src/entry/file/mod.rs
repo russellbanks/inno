@@ -1,20 +1,22 @@
 mod copy_mode;
 mod flags;
+mod r#type;
 
 use std::io;
 
 pub use copy_mode::FileCopyMode;
 use encoding_rs::Encoding;
 pub use flags::FileFlags;
-use zerocopy::{Immutable, KnownLayout, LE, TryFromBytes};
+pub use r#type::FileType;
+use zerocopy::LE;
 
 use crate::{
-    encoding::InnoValue, entry::Condition, header::flag_reader::read_flags::read_flags,
-    read::ReadBytesExt, version::InnoVersion, windows_version::WindowsVersionRange,
+    entry::Condition, header::flag_reader::read_flags::read_flags, read::ReadBytesExt,
+    version::InnoVersion, windows_version::WindowsVersionRange,
 };
 
 /// <https://github.com/jrsoftware/issrc/blob/is-6_4_3/Projects/Src/Shared.Struct.pas#L225>
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct File {
     source: Option<String>,
     destination: Option<String>,
@@ -31,60 +33,50 @@ pub struct File {
 }
 
 impl File {
-    pub fn read_from<R>(
-        mut src: R,
+    pub fn read<R>(
+        mut reader: R,
         codepage: &'static Encoding,
         version: InnoVersion,
     ) -> io::Result<Self>
     where
         R: io::Read,
     {
-        if version < (1, 3, 0) {
-            let _uncompressed_size = src.read_u32::<LE>()?;
+        if version < 1.3 {
+            let _uncompressed_size = reader.read_u32::<LE>()?;
         }
 
         let mut file = Self {
-            source: InnoValue::string_from(&mut src, codepage)?,
-            destination: InnoValue::string_from(&mut src, codepage)?,
-            install_font_name: InnoValue::string_from(&mut src, codepage)?,
-            permission: -1,
+            source: reader.read_decoded_pascal_string(codepage)?,
+            destination: reader.read_decoded_pascal_string(codepage)?,
+            install_font_name: reader.read_decoded_pascal_string(codepage)?,
             ..Self::default()
         };
 
         if version >= (5, 2, 5) {
-            file.strong_assembly_name = InnoValue::string_from(&mut src, codepage)?;
+            file.strong_assembly_name = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        Condition::read_from(&mut src, codepage, version)?;
+        Condition::read(&mut reader, codepage, version)?;
 
-        WindowsVersionRange::read_from(&mut src, version)?;
+        WindowsVersionRange::read_from(&mut reader, version)?;
 
-        file.location = src.read_u32::<LE>()?;
-        file.attributes = src.read_u32::<LE>()?;
-        file.external_size = if version >= (4, 0, 0) {
-            src.read_u64::<LE>()?
+        file.location = reader.read_u32::<LE>()?;
+        file.attributes = reader.read_u32::<LE>()?;
+        file.external_size = if version >= 4 {
+            reader.read_u64::<LE>()?
         } else {
-            u64::from(src.read_u32::<LE>()?)
+            reader.read_u32::<LE>()?.into()
         };
 
         if version < (3, 0, 5) {
-            match FileCopyMode::try_read_from_io(&mut src)? {
-                FileCopyMode::Normal => file.flags |= FileFlags::PROMPT_IF_OLDER,
-                FileCopyMode::IfDoesntExist => {
-                    file.flags |= FileFlags::ONLY_IF_DOESNT_EXIST | FileFlags::PROMPT_IF_OLDER;
-                }
-                FileCopyMode::AlwaysOverwrite => {
-                    file.flags |= FileFlags::IGNORE_VERSION | FileFlags::PROMPT_IF_OLDER;
-                }
-                FileCopyMode::AlwaysSkipIfSameOrOlder => {}
-            }
+            file.flags |= FileFlags::from(FileCopyMode::try_read_from_io(&mut reader)?);
         }
 
-        if version >= (4, 1, 0) {
-            file.permission = src.read_i16::<LE>()?;
+        if version >= 4.1 {
+            file.permission = reader.read_i16::<LE>()?;
         }
 
-        file.flags |= read_flags!(&mut src,
+        file.flags |= read_flags!(&mut reader,
             [
                 FileFlags::CONFIRM_OVERWRITE,
                 FileFlags::NEVER_UNINSTALL,
@@ -94,7 +86,7 @@ impl File {
                 FileFlags::REGISTER_TYPE_LIB,
                 FileFlags::SHARED_FILE,
             ],
-            if version < (2, 0, 0) && !version.is_isx() => FileFlags::IS_README_FILE,
+            if version < 2 && !version.is_isx() => FileFlags::IS_README_FILE,
             [FileFlags::COMPARE_TIME_STAMP, FileFlags::FONT_IS_NOT_TRUE_TYPE],
             if version >= (1, 2, 5) => FileFlags::SKIP_IF_SOURCE_DOESNT_EXIST,
             if version >= (1, 2, 6) => FileFlags::OVERWRITE_READ_ONLY,
@@ -110,16 +102,15 @@ impl File {
                 FileFlags::IGNORE_VERSION,
                 FileFlags::PROMPT_IF_OLDER,
             ],
-            if version >= (4, 0, 0)
-                || (version.is_isx() && version >= (3, 0, 6)) => FileFlags::DONT_COPY,
+            if version >= 4 || (version.is_isx() && version >= (3, 0, 6)) => FileFlags::DONT_COPY,
             if version >= (4, 0, 5) => FileFlags::UNINS_REMOVE_READ_ONLY,
             if version >= (4, 1, 8) => FileFlags::RECURSE_SUB_DIRS_EXTERNAL,
             if version >= (4, 2, 1) => FileFlags::REPLACE_SAME_VERSION_IF_CONTENTS_DIFFER,
             if version >= (4, 2, 5) => FileFlags::DONT_VERIFY_CHECKSUM,
             if version >= (5, 0, 3) => FileFlags::UNINS_NO_SHARED_FILE_PROMPT,
-            if version >= (5, 1, 0) => FileFlags::CREATE_ALL_SUB_DIRS,
+            if version >= 5.1 => FileFlags::CREATE_ALL_SUB_DIRS,
             if version >= (5, 1, 2) => FileFlags::BITS_32, FileFlags::BITS_64,
-            if version >= (5, 2, 0) => [
+            if version >= 5.2 => [
                 FileFlags::EXTERNAL_SIZE_PRESET,
                 FileFlags::SET_NTFS_COMPRESSION,
                 FileFlags::UNSET_NTFS_COMPRESSION,
@@ -127,30 +118,95 @@ impl File {
             if version >= (5, 2, 5) => FileFlags::GAC_INSTALL
         )?;
 
-        file.r#type = FileType::try_read_from_io(&mut src)?;
+        file.r#type = FileType::try_read_from_io(&mut reader)?;
 
         Ok(file)
     }
+
+    /// Returns the source file path as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn source(&self) -> Option<&str> {
+        self.source.as_deref()
+    }
+
+    /// Returns the destination file path as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn destination(&self) -> Option<&str> {
+        self.destination.as_deref()
+    }
+
+    /// Returns the install font name as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn install_font_name(&self) -> Option<&str> {
+        self.install_font_name.as_deref()
+    }
+
+    /// Returns the strong assembly name as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn strong_assembly_name(&self) -> Option<&str> {
+        self.strong_assembly_name.as_deref()
+    }
+
+    /// Returns the location index into the data entry list.
+    #[must_use]
+    #[inline]
+    pub const fn location(&self) -> u32 {
+        self.location
+    }
+
+    /// Returns the attributes of the file.
+    #[must_use]
+    #[inline]
+    pub const fn attributes(&self) -> u32 {
+        self.attributes
+    }
+
+    /// Returns the external size of the file.
+    #[must_use]
+    #[inline]
+    pub const fn external_size(&self) -> u64 {
+        self.external_size
+    }
+
+    /// Returns the permission index into the permission entry list.
+    #[must_use]
+    #[inline]
+    pub const fn permission(&self) -> i16 {
+        self.permission
+    }
+
+    /// Returns the flags associated with the file.
+    #[must_use]
+    #[inline]
+    pub const fn flags(&self) -> FileFlags {
+        self.flags
+    }
+
+    /// Returns the type of the file.
+    #[must_use]
+    #[inline]
+    pub const fn r#type(&self) -> FileType {
+        self.r#type
+    }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Immutable, KnownLayout, TryFromBytes)]
-#[repr(u8)]
-enum FileType {
-    #[default]
-    UserFile = 0,
-    UninstallExe = 1,
-    RegSvrExe = 2,
-}
-
-impl FileType {
-    pub fn try_read_from_io<R>(mut src: R) -> io::Result<Self>
-    where
-        Self: Sized,
-        R: io::Read,
-    {
-        let mut buf = [0; size_of::<Self>()];
-        src.read_exact(&mut buf)?;
-        Self::try_read_from_bytes(&buf)
-            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
+impl Default for File {
+    fn default() -> Self {
+        Self {
+            source: None,
+            destination: None,
+            install_font_name: None,
+            strong_assembly_name: None,
+            location: 0,
+            attributes: 0,
+            external_size: 0,
+            permission: -1,
+            flags: FileFlags::default(),
+            r#type: FileType::default(),
+        }
     }
 }

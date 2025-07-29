@@ -29,7 +29,14 @@ impl InnoValue {
         Self::raw_from(src).map(|opt_raw| opt_raw.map(Self))
     }
 
-    pub fn string_from<R>(src: R, codepage: &'static Encoding) -> io::Result<Option<String>>
+    pub fn string_from<R>(src: R, codepage: &'static Encoding) -> io::Result<String>
+    where
+        R: io::Read,
+    {
+        Self::ansi_string_from(src, codepage).map(Option::unwrap_or_default)
+    }
+
+    pub fn ansi_string_from<R>(src: R, codepage: &'static Encoding) -> io::Result<Option<String>>
     where
         R: io::Read,
     {
@@ -50,6 +57,19 @@ impl InnoValue {
         let mut buf = vec![0; length as usize];
         src.read_exact(&mut buf)?;
         Ok(Some(codepage.decode(&buf).0.into_owned()))
+    }
+
+    /// Reads a value from the source, skipping the number of bytes specified by the length prefix.
+    pub fn skip<R>(mut src: R) -> io::Result<()>
+    where
+        R: io::Read,
+    {
+        let length = src.read_u32::<LE>()?;
+
+        // Discard the bytes by copying them to a sink
+        io::copy(&mut src.take(length.into()), &mut io::sink())?;
+
+        Ok(())
     }
 
     pub fn into_string(self, codepage: &'static Encoding) -> String {

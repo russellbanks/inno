@@ -8,12 +8,14 @@ pub enum Compression {
 }
 
 impl Compression {
+    #[must_use]
     pub const fn size(self) -> u32 {
         match self {
             Self::Stored(size) | Self::Zlib(size) | Self::LZMA1(size) => size,
         }
     }
 
+    #[must_use]
     pub const fn size_mut(&mut self) -> &mut u32 {
         match self {
             Self::Stored(size) | Self::Zlib(size) | Self::LZMA1(size) => size,
@@ -21,18 +23,21 @@ impl Compression {
     }
 
     /// Returns true if the compression is stored (no compression).
+    #[must_use]
     #[inline]
     pub const fn is_stored(self) -> bool {
         matches!(self, Self::Stored(_))
     }
 
     /// Returns true if the compression is Zlib.
+    #[must_use]
     #[inline]
     pub const fn is_zlib(self) -> bool {
         matches!(self, Self::Zlib(_))
     }
 
-    /// Returns true if the compression is LZMA1
+    /// Returns true if the compression is LZMA1.
+    #[must_use]
     #[inline]
     pub const fn is_lzma1(self) -> bool {
         matches!(self, Self::LZMA1(_))

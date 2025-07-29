@@ -1,7 +1,9 @@
+use std::fmt;
+
 use bitflags::bitflags;
 
 bitflags! {
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Clone, Copy, Default, Eq, PartialEq)]
     pub struct HeaderFlags: u128 {
         const DISABLE_STARTUP_PROMPT = 1;
         const CREATE_APP_DIR = 1 << 1;
@@ -74,11 +76,31 @@ bitflags! {
     }
 }
 
+impl fmt::Debug for HeaderFlags {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_empty() {
+            f.write_str("0x0")
+        } else {
+            bitflags::parser::to_writer(self, f)
+        }
+    }
+}
+
 bitflags! {
     /// <https://jrsoftware.org/ishelp/index.php?topic=setup_privilegesrequiredoverridesallowed>
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Clone, Copy, Default, Eq, PartialEq)]
     pub struct PrivilegesRequiredOverrides: u8 {
         const COMMAND_LINE = 1;
         const DIALOG = 1 << 1;
+    }
+}
+
+impl fmt::Debug for PrivilegesRequiredOverrides {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_empty() {
+            f.write_str("0x0")
+        } else {
+            bitflags::parser::to_writer(self, f)
+        }
     }
 }

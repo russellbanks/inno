@@ -1,13 +1,15 @@
+mod checksum;
 mod offset;
-mod version;
+mod signature;
 
 use std::{
     io,
     io::{Read, Seek, SeekFrom},
 };
 
+pub use checksum::Checksum;
 use offset::SetupLoaderOffset;
-use version::{KNOWN_SETUP_LOADER_VERSIONS, SetupLoaderVersion};
+use signature::SetupLoaderSignature;
 use zerocopy::LE;
 
 use super::{
@@ -20,39 +22,78 @@ use super::{
     version::InnoVersion,
 };
 
-pub const SIGNATURE_LEN: usize = 12;
-
-#[derive(Debug)]
-pub enum Checksum {
-    Adler32(u32),
-    CRC32(u32),
-}
-
 #[derive(Debug)]
 pub struct SetupLoader {
-    pub version: SetupLoaderVersion,
-    pub revision: u32,
-    /// Minimum expected size of setup.exe
-    pub minimum_setup_exe_size: u32,
-    /// Offset of compressed setup.e32
-    pub exe_offset: u32,
-    /// Size of setup.e32 after compression
-    pub exe_compressed_size: u32,
-    /// Size of setup.e32 before compression
-    pub exe_uncompressed_size: u32,
-    /// Checksum of setup.e32 before compression
-    pub exe_checksum: Checksum,
-    pub message_offset: u32,
-    /// Offset of embedded setup-0.bin data
-    pub header_offset: u32,
-    /// Offset of embedded setup-1.bin data
-    pub data_offset: u32,
+    /// Signature of the setup loader.
+    #[doc(alias = "ID")]
+    signature: SetupLoaderSignature,
+
+    /// Version of the setup loader.
+    version: InnoVersion,
+
+    /// Revision number of the setup loader.
+    #[doc(alias = "SetupLdrOffsetTableVersion")]
+    revision: u32,
+
+    /// Minimum expected size of setup.exe.
+    ///
+    /// #### Revisions
+    ///
+    /// * 1: u32
+    /// * 2: i64
+    #[doc(alias = "TotalSize")]
+    minimum_setup_exe_size: i64,
+
+    /// Offset of compressed setup.e32.
+    ///
+    /// #### Revisions
+    ///
+    /// * 1: u32
+    /// * 2: i64
+    #[doc(alias = "OffsetEXE")]
+    exe_offset: i64,
+
+    /// Size of setup.e32 after compression.
+    #[doc(alias = "CompressedSizeEXE")]
+    exe_compressed_size: u32,
+
+    /// Size of setup.e32 before compression.
+    #[doc(alias = "UncompressedSizeEXE")]
+    exe_uncompressed_size: u32,
+
+    /// Checksum of setup.e32 before compression.
+    #[doc(alias = "CRCEXE")]
+    exe_checksum: Checksum,
+
+    message_offset: u32,
+
+    /// Offset of embedded setup-0.bin data.
+    ///
+    /// #### Revisions
+    ///
+    /// * 1: u32
+    /// * 2: i64
+    #[doc(alias = "Offset0")]
+    header_offset: i64,
+
+    /// Offset of embedded setup-1.bin data.
+    ///
+    /// #### Revisions
+    ///
+    /// * 1: u32
+    /// * 2: i64
+    #[doc(alias = "Offset1")]
+    data_offset: i64,
+
+    /// Reserved padding for future use, present in revision 2 and later.
+    #[doc(alias = "ReservedPadding")]
+    reserved_padding: u32,
 }
 
 impl SetupLoader {
-    const OFFSET: u32 = 0x30;
+    const EXE_MODE_OFFSET: u32 = 0x30;
 
-    const RESOURCE: u32 = 11111;
+    const TABLE_RESOURCE_ID: u32 = 11111;
 
     /// Attempts to find the setup loader via the legacy method, falling back to checking for a PE
     /// resource entry.
@@ -69,10 +110,10 @@ impl SetupLoader {
         R: Read + Seek,
     {
         // Seek to the setup loader offset header
-        reader.seek(SeekFrom::Start(Self::OFFSET.into()))?;
+        reader.seek(SeekFrom::Start(Self::EXE_MODE_OFFSET.into()))?;
 
         // Read the setup loader offset header
-        let setup_loader_offset = SetupLoaderOffset::try_read_from(&mut reader)?;
+        let setup_loader_offset = SetupLoaderOffset::try_read(&mut reader)?;
 
         // Seek to the setup loader offset table
         reader.seek(SeekFrom::Start(setup_loader_offset.table_offset().into()))?;
@@ -131,7 +172,7 @@ impl SetupLoader {
         let _rc_data = resource_directory.find_rc_data()?;
 
         let loader_directory_table =
-            resource_directory.find_directory_table_by_id(Self::RESOURCE)?;
+            resource_directory.find_directory_table_by_id(Self::TABLE_RESOURCE_ID)?;
 
         let loader_directory = loader_directory_table.entries().next().ok_or_else(|| {
             InnoError::Io(io::Error::new(
@@ -157,13 +198,12 @@ impl SetupLoader {
         R: Read,
     {
         let mut checksum = Crc32Reader::new(reader);
-        let mut signature = [0; SIGNATURE_LEN];
-        checksum.read_exact(&mut signature)?;
 
-        let loader_version = KNOWN_SETUP_LOADER_VERSIONS
-            .into_iter()
-            .find(|setup_loader_version| setup_loader_version.signature == signature)
-            .ok_or(InnoError::UnknownLoaderSignature(signature))?;
+        let signature = SetupLoaderSignature::read_from(&mut checksum)?;
+
+        let loader_version = signature
+            .version()
+            .ok_or(InnoError::UnknownLoaderSignature(signature.as_array()))?;
 
         let revision = if loader_version >= (5, 1, 5) {
             checksum.read_u32::<LE>()?
@@ -171,9 +211,17 @@ impl SetupLoader {
             0
         };
 
-        let minimum_setup_exe_size = checksum.read_u32::<LE>()?;
+        let minimum_setup_exe_size = if revision >= 2 {
+            checksum.read_i64::<LE>()?
+        } else {
+            checksum.read_u32::<LE>()?.into()
+        };
 
-        let exe_offset = checksum.read_u32::<LE>()?;
+        let exe_offset = if revision >= 2 {
+            checksum.read_i64::<LE>()?
+        } else {
+            checksum.read_u32::<LE>()?.into()
+        };
 
         let exe_compressed_size = if loader_version >= (4, 1, 6) {
             0
@@ -189,14 +237,29 @@ impl SetupLoader {
             Checksum::Adler32(checksum.read_u32::<LE>()?)
         };
 
-        let message_offset = if loader_version >= (4, 0, 0) {
+        let message_offset = if loader_version >= 4 {
             0
         } else {
             checksum.get_mut().read_u32::<LE>()?
         };
 
-        let header_offset = checksum.read_u32::<LE>()?;
-        let data_offset = checksum.read_u32::<LE>()?;
+        let header_offset = if revision >= 2 {
+            checksum.read_i64::<LE>()?
+        } else {
+            checksum.read_u32::<LE>()?.into()
+        };
+
+        let data_offset = if revision >= 2 {
+            checksum.read_i64::<LE>()?
+        } else {
+            checksum.read_u32::<LE>()?.into()
+        };
+
+        let reserved_padding = if revision >= 2 {
+            checksum.read_u32::<LE>()?
+        } else {
+            0
+        };
 
         if loader_version >= (4, 0, 10) {
             let expected_checksum = checksum.get_mut().read_u32::<LE>()?;
@@ -210,6 +273,7 @@ impl SetupLoader {
         }
 
         Ok(Self {
+            signature,
             version: loader_version,
             revision,
             minimum_setup_exe_size,
@@ -220,6 +284,93 @@ impl SetupLoader {
             message_offset,
             header_offset,
             data_offset,
+            reserved_padding,
         })
+    }
+
+    /// Returns the version of the setup loader.
+    #[must_use]
+    #[inline]
+    pub const fn version(&self) -> InnoVersion {
+        self.version
+    }
+
+    /// Returns the revision number of the setup loader.
+    #[doc(alias = "SetupLdrOffsetTableVersion")]
+    #[must_use]
+    #[inline]
+    pub const fn revision(&self) -> u32 {
+        self.revision
+    }
+
+    /// Returns the signature of the setup loader.
+    #[doc(alias = "ID")]
+    #[must_use]
+    #[inline]
+    pub const fn signature(&self) -> SetupLoaderSignature {
+        self.signature
+    }
+
+    /// Returns the minimum expected size of the setup.exe file.
+    #[doc(alias = "TotalSize")]
+    #[must_use]
+    #[inline]
+    pub fn minimum_setup_exe_size(&self) -> i64 {
+        self.minimum_setup_exe_size
+    }
+
+    /// Returns the offset of the compressed setup.e32 file.
+    #[doc(alias = "OffsetEXE")]
+    #[must_use]
+    #[inline]
+    pub fn exe_offset(&self) -> i64 {
+        self.exe_offset
+    }
+
+    /// Returns the size of the compressed setup.e32 file.
+    #[doc(alias = "CompressedSizeEXE")]
+    #[must_use]
+    #[inline]
+    pub fn exe_compressed_size(&self) -> u32 {
+        self.exe_compressed_size
+    }
+
+    /// Returns the size of the uncompressed setup.e32 file.
+    #[doc(alias = "UncompressedSizeEXE")]
+    #[must_use]
+    #[inline]
+    pub fn exe_uncompressed_size(&self) -> u32 {
+        self.exe_uncompressed_size
+    }
+
+    /// Returns the checksum of the uncompressed setup.e32 file.
+    #[doc(alias = "CRCEXE")]
+    #[must_use]
+    #[inline]
+    pub fn exe_checksum(&self) -> Checksum {
+        self.exe_checksum
+    }
+
+    /// Returns the offset of the message resource.
+    #[must_use]
+    #[inline]
+    pub fn message_offset(&self) -> u32 {
+        self.message_offset
+    }
+
+    /// Returns the offset of the embedded setup-0.bin data.
+    #[doc(alias = "Offset0")]
+    #[must_use]
+    #[inline]
+    pub fn header_offset(&self) -> i64 {
+        self.header_offset
+    }
+
+    /// Returns the offset of the embedded setup-1.bin data.
+    #[doc(alias = "Offset1")]
+    #[must_use]
+    #[inline]
+    pub fn data_offset(&self) -> i64 {
+        self.data_offset
     }
 }

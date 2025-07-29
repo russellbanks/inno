@@ -4,24 +4,22 @@ use bitflags::bitflags;
 use encoding_rs::Encoding;
 use zerocopy::{Immutable, KnownLayout, LE, TryFromBytes};
 
-use crate::{
-    InnoVersion, encoding::InnoValue, read::ReadBytesExt, windows_version::WindowsVersionRange,
-};
+use crate::{InnoVersion, read::ReadBytesExt, windows_version::WindowsVersionRange};
 
 #[derive(Clone, Debug, Default)]
 pub struct Type {
-    pub name: String,
-    pub description: Option<String>,
-    pub languages: Option<String>,
-    pub check: Option<String>,
-    pub is_custom: bool,
-    pub setup: SetupType,
-    pub size: u64,
+    name: Option<String>,
+    description: Option<String>,
+    languages: Option<String>,
+    check: Option<String>,
+    is_custom: bool,
+    setup: SetupType,
+    size: u64,
 }
 
 impl Type {
-    pub fn read_from<R>(
-        mut src: R,
+    pub fn read<R>(
+        mut reader: R,
         codepage: &'static Encoding,
         version: InnoVersion,
     ) -> io::Result<Self>
@@ -29,35 +27,84 @@ impl Type {
         R: io::Read,
     {
         let mut r#type = Self {
-            name: InnoValue::string_from(&mut src, codepage)?.unwrap_or_default(),
-            description: InnoValue::string_from(&mut src, codepage)?,
+            name: reader.read_decoded_pascal_string(codepage)?,
+            description: reader.read_decoded_pascal_string(codepage)?,
             ..Self::default()
         };
 
         if version >= (4, 0, 1) {
-            r#type.languages = InnoValue::string_from(&mut src, codepage)?;
+            r#type.languages = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        if version >= (4, 0, 0) || (version.is_isx() && version >= (1, 3, 24)) {
-            r#type.check = InnoValue::string_from(&mut src, codepage)?;
+        if version >= 4 || (version.is_isx() && version >= (1, 3, 24)) {
+            r#type.check = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        WindowsVersionRange::read_from(&mut src, version)?;
+        WindowsVersionRange::read_from(&mut reader, version)?;
 
-        let flags = TypeFlags::from_bits_retain(src.read_u8()?);
+        let flags = TypeFlags::from_bits_retain(reader.read_u8()?);
         r#type.is_custom = flags.contains(TypeFlags::CUSTOM_SETUP_TYPE);
 
         if version >= (4, 0, 3) {
-            r#type.setup = SetupType::try_read_from_io(&mut src)?;
+            r#type.setup = SetupType::try_read_from_io(&mut reader)?;
         }
 
-        r#type.size = if version >= (4, 0, 0) {
-            src.read_u64::<LE>()?
+        r#type.size = if version >= 4 {
+            reader.read_u64::<LE>()?
         } else {
-            u64::from(src.read_u32::<LE>()?)
+            reader.read_u32::<LE>()?.into()
         };
 
         Ok(r#type)
+    }
+
+    /// Returns the name of the type as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    /// Returns the description of the type as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    /// Returns the languages of the type as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn languages(&self) -> Option<&str> {
+        self.languages.as_deref()
+    }
+
+    /// Returns the check string of the type as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn check(&self) -> Option<&str> {
+        self.check.as_deref()
+    }
+
+    /// Returns whether the type is custom.
+    #[must_use]
+    #[inline]
+    pub const fn is_custom(&self) -> bool {
+        self.is_custom
+    }
+
+    /// Returns the setup type of the type.
+    #[must_use]
+    #[inline]
+    pub const fn setup(&self) -> SetupType {
+        self.setup
+    }
+
+    /// Returns the size of the type.
+    #[must_use]
+    #[inline]
+    pub const fn size(&self) -> u64 {
+        self.size
     }
 }
 

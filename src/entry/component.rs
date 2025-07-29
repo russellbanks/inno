@@ -4,73 +4,155 @@ use bitflags::bitflags;
 use encoding_rs::Encoding;
 use zerocopy::LE;
 
-use crate::{
-    encoding::InnoValue, read::ReadBytesExt, version::InnoVersion,
-    windows_version::WindowsVersionRange,
-};
+use crate::{read::ReadBytesExt, version::InnoVersion, windows_version::WindowsVersionRange};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Component {
-    pub name: Option<String>,
-    pub description: Option<String>,
-    pub types: Option<String>,
-    pub languages: Option<String>,
-    pub check: Option<String>,
-    pub extra_disk_space_required: u64,
-    pub level: u32,
-    pub used: bool,
-    pub flags: ComponentFlags,
-    pub size: u64,
+    name: Option<String>,
+    description: Option<String>,
+    types: Option<String>,
+    languages: Option<String>,
+    check: Option<String>,
+    extra_disk_space_required: u64,
+    level: u32,
+    used: bool,
+    flags: ComponentFlags,
+    size: u64,
 }
 
 impl Component {
-    pub fn read_from<R: Read>(
-        mut src: R,
+    pub fn read<R: Read>(
+        mut reader: R,
         codepage: &'static Encoding,
         version: InnoVersion,
     ) -> Result<Self> {
         let mut component = Self {
-            name: InnoValue::string_from(&mut src, codepage)?,
-            description: InnoValue::string_from(&mut src, codepage)?,
-            types: InnoValue::string_from(&mut src, codepage)?,
+            name: reader.read_decoded_pascal_string(codepage)?,
+            description: reader.read_decoded_pascal_string(codepage)?,
+            types: reader.read_decoded_pascal_string(codepage)?,
             ..Self::default()
         };
 
         if version >= (4, 0, 1) {
-            component.languages = InnoValue::string_from(&mut src, codepage)?;
+            component.languages = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        if version >= (4, 0, 0) || (version.is_isx() && version >= (1, 3, 24)) {
-            component.check = InnoValue::string_from(&mut src, codepage)?;
+        if version >= 4 || (version.is_isx() && version >= (1, 3, 24)) {
+            component.check = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        if version >= (4, 0, 0) {
-            component.extra_disk_space_required = src.read_u64::<LE>()?;
+        if version >= 4 {
+            component.extra_disk_space_required = reader.read_u64::<LE>()?;
         } else {
-            component.extra_disk_space_required = u64::from(src.read_u32::<LE>()?);
+            component.extra_disk_space_required = reader.read_u32::<LE>()?.into();
         }
 
-        if version >= (4, 0, 0) || (version.is_isx() && version >= (3, 0, 3)) {
-            component.level = src.read_u32::<LE>()?;
+        if version >= 4 || (version.is_isx() && version >= (3, 0, 3)) {
+            component.level = reader.read_u32::<LE>()?;
         }
 
-        if version >= (4, 0, 0) || (version.is_isx() && version >= (3, 0, 4)) {
-            component.used = src.read_u8()? != 0;
-        } else {
-            component.used = true;
+        if version >= 4 || (version.is_isx() && version >= (3, 0, 4)) {
+            component.used = reader.read_u8()? != 0;
         }
 
-        WindowsVersionRange::read_from(&mut src, version)?;
+        WindowsVersionRange::read_from(&mut reader, version)?;
 
-        component.flags = ComponentFlags::from_bits_retain(src.read_u8()?);
+        component.flags = ComponentFlags::from_bits_retain(reader.read_u8()?);
 
-        if version >= (4, 0, 0) {
-            component.size = src.read_u64::<LE>()?;
-        } else if version >= (2, 0, 0) || (version.is_isx() && version >= (1, 3, 24)) {
-            component.size = u64::from(src.read_u32::<LE>()?);
+        if version >= 4 {
+            component.size = reader.read_u64::<LE>()?;
+        } else if version >= 2 || (version.is_isx() && version >= (1, 3, 24)) {
+            component.size = u64::from(reader.read_u32::<LE>()?);
         }
 
         Ok(component)
+    }
+
+    /// Returns the name of the component as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    /// Returns the description of the component as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    /// Returns the types of the component as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn types(&self) -> Option<&str> {
+        self.types.as_deref()
+    }
+
+    /// Returns the languages of the component as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn languages(&self) -> Option<&str> {
+        self.languages.as_deref()
+    }
+
+    /// Returns the check string of the component as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn check(&self) -> Option<&str> {
+        self.check.as_deref()
+    }
+
+    /// Returns the extra disk space required by the component.
+    #[must_use]
+    #[inline]
+    pub const fn extra_disk_space_required(&self) -> u64 {
+        self.extra_disk_space_required
+    }
+
+    /// Returns the level of the component.
+    #[must_use]
+    #[inline]
+    pub const fn level(&self) -> u32 {
+        self.level
+    }
+
+    /// Returns whether the component is used.
+    #[must_use]
+    #[inline]
+    pub const fn used(&self) -> bool {
+        self.used
+    }
+
+    /// Returns the flags of the component.
+    #[must_use]
+    #[inline]
+    pub const fn flags(&self) -> ComponentFlags {
+        self.flags
+    }
+
+    /// Returns the size of the component.
+    #[must_use]
+    #[inline]
+    pub const fn size(&self) -> u64 {
+        self.size
+    }
+}
+
+impl Default for Component {
+    fn default() -> Self {
+        Self {
+            name: None,
+            description: None,
+            types: None,
+            languages: None,
+            check: None,
+            extra_disk_space_required: 0,
+            level: 0,
+            used: true,
+            flags: ComponentFlags::default(),
+            size: 0,
+        }
     }
 }
 

@@ -1,16 +1,10 @@
+mod variant;
+
 use std::{cmp::Ordering, fmt, io};
 
-use bitflags::bitflags;
+pub use variant::VersionVariant;
 
 use crate::error::InnoError;
-
-bitflags! {
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-    pub struct VersionFlags: u8 {
-        const UNICODE = 1;
-        const ISX = 1 << 1;
-    }
-}
 
 #[derive(Clone, Copy, Debug, Default, Eq)]
 pub struct InnoVersion {
@@ -18,12 +12,14 @@ pub struct InnoVersion {
     minor: u8,
     patch: u8,
     revision: u8,
-    variant: VersionFlags,
+    variant: VersionVariant,
 }
 
 impl InnoVersion {
+    /// The raw length of the version string in bytes.
     const RAW_LEN: usize = 1 << 6;
 
+    /// Creates a new InnoVersion with the specified major, minor, patch, and revision.
     #[must_use]
     #[inline]
     pub const fn new(major: u8, minor: u8, patch: u8, revision: u8) -> Self {
@@ -32,10 +28,12 @@ impl InnoVersion {
             minor,
             patch,
             revision,
-            variant: VersionFlags::empty(),
+            variant: VersionVariant::empty(),
         }
     }
 
+    /// Creates a new InnoVersion with the specified major, minor, patch, revision, and variant
+    /// flags.
     #[must_use]
     #[inline]
     pub const fn new_with_variant(
@@ -43,7 +41,7 @@ impl InnoVersion {
         minor: u8,
         patch: u8,
         revision: u8,
-        variant: VersionFlags,
+        variant: VersionVariant,
     ) -> Self {
         Self {
             major,
@@ -103,21 +101,21 @@ impl InnoVersion {
         );
 
         // Inno Setup 6.3.0 and above is always only Unicode
-        if inno_version >= (6, 3, 0) {
+        if inno_version >= 6.3 {
             return Some(Self {
-                variant: VersionFlags::UNICODE,
+                variant: VersionVariant::UNICODE,
                 ..inno_version
             });
         }
 
-        let mut flags = VersionFlags::empty();
+        let mut flags = VersionVariant::empty();
 
         // Check for a Unicode "(u)" flag within parentheses
         if let Some(u_start) = remaining.iter().position(|&byte| byte == b'(')
             && let Some(u_end) = remaining[u_start..].iter().position(|&byte| byte == b')')
             && remaining[u_start + 1..u_start + u_end].eq_ignore_ascii_case(b"u")
         {
-            flags |= VersionFlags::UNICODE;
+            flags |= VersionVariant::UNICODE;
         }
 
         // Check for "ISX" or "Inno Setup Extensions"
@@ -126,7 +124,7 @@ impl InnoVersion {
                 .windows(INNO_SETUP_EXTENSIONS.len())
                 .any(|window| window == INNO_SETUP_EXTENSIONS)
         {
-            flags |= VersionFlags::ISX;
+            flags |= VersionVariant::ISX;
         }
 
         Some(Self {
@@ -135,16 +133,60 @@ impl InnoVersion {
         })
     }
 
+    /// Returns the major version number.
+    #[must_use]
+    #[inline]
+    pub const fn major(&self) -> u8 {
+        self.major
+    }
+
+    /// Returns the minor version number.
+    #[must_use]
+    #[inline]
+    pub const fn minor(&self) -> u8 {
+        self.minor
+    }
+
+    /// Returns the patch version number.
+    #[must_use]
+    #[inline]
+    pub const fn patch(&self) -> u8 {
+        self.patch
+    }
+
+    /// Returns the revision version number.
+    #[must_use]
+    #[inline]
+    pub const fn revision(&self) -> u8 {
+        self.revision
+    }
+
+    /// Returns the variant flags of the version.
+    #[must_use]
+    #[inline]
+    pub const fn variant(&self) -> VersionVariant {
+        self.variant
+    }
+
+    /// Returns the version as a tuple of (major, minor, patch, revision).
+    #[must_use]
+    #[inline]
+    pub const fn as_tuple(&self) -> (u8, u8, u8, u8) {
+        (self.major, self.minor, self.patch, self.revision)
+    }
+
+    /// Returns true if the version has a Unicode flag.
     #[must_use]
     #[inline]
     pub const fn is_unicode(&self) -> bool {
-        self.variant.contains(VersionFlags::UNICODE)
+        self.variant.is_unicode()
     }
 
+    /// Returns true if the version has an ISX flag.
     #[must_use]
     #[inline]
     pub const fn is_isx(&self) -> bool {
-        self.variant.contains(VersionFlags::ISX)
+        self.variant.is_isx()
     }
 
     #[must_use]
@@ -166,6 +208,10 @@ impl fmt::Display for InnoVersion {
             "{}.{}.{}.{}",
             self.major, self.minor, self.patch, self.revision
         )?;
+
+        if self.is_isx() {
+            write!(f, " with ISX")?;
+        }
 
         if self.is_unicode() {
             write!(f, " (u)")?;
@@ -202,91 +248,67 @@ impl Ord for InnoVersion {
 
 impl PartialEq<(u8, u8, u8, u8)> for InnoVersion {
     fn eq(&self, &(major, minor, patch, revision): &(u8, u8, u8, u8)) -> bool {
-        self == &Self::new(major, minor, patch, revision)
+        *self == Self::new(major, minor, patch, revision)
     }
 }
 
 impl PartialEq<(u8, u8, u8)> for InnoVersion {
     fn eq(&self, &(major, minor, patch): &(u8, u8, u8)) -> bool {
-        self == &Self::new(major, minor, patch, 0)
+        *self == Self::new(major, minor, patch, 0)
     }
 }
 
 impl PartialEq<(u8, u8)> for InnoVersion {
     fn eq(&self, &(major, minor): &(u8, u8)) -> bool {
-        self == &Self::new(major, minor, 0, 0)
+        *self == Self::new(major, minor, 0, 0)
     }
 }
 
 impl PartialEq<u8> for InnoVersion {
     fn eq(&self, &major: &u8) -> bool {
-        self == &Self::new(major, 0, 0, 0)
+        *self == Self::new(major, 0, 0, 0)
+    }
+}
+
+impl PartialEq<f32> for InnoVersion {
+    fn eq(&self, &version: &f32) -> bool {
+        *self == Self::new(version as u8, ((version * 10.0) as u8) % 10, 0, 0)
     }
 }
 
 impl PartialEq<InnoVersion> for (u8, u8, u8, u8) {
-    fn eq(
-        &self,
-        &InnoVersion {
-            major,
-            minor,
-            patch,
-            revision,
-            ..
-        }: &InnoVersion,
-    ) -> bool {
-        self == &(major, minor, patch, revision)
+    fn eq(&self, version: &InnoVersion) -> bool {
+        *self == version.as_tuple()
     }
 }
 
 impl PartialEq<InnoVersion> for (u8, u8, u8) {
-    fn eq(
-        &self,
-        &InnoVersion {
-            major,
-            minor,
-            patch,
-            revision,
-            ..
-        }: &InnoVersion,
-    ) -> bool {
-        (self.0, self.1, self.2, 0) == (major, minor, patch, revision)
+    fn eq(&self, version: &InnoVersion) -> bool {
+        (self.0, self.1, self.2, 0) == version.as_tuple()
     }
 }
 
 impl PartialEq<InnoVersion> for (u8, u8) {
-    fn eq(
-        &self,
-        &InnoVersion {
-            major,
-            minor,
-            patch,
-            revision,
-            ..
-        }: &InnoVersion,
-    ) -> bool {
-        (self.0, self.1, 0, 0) == (major, minor, patch, revision)
+    fn eq(&self, version: &InnoVersion) -> bool {
+        (self.0, self.1, 0, 0) == version.as_tuple()
     }
 }
 
 impl PartialEq<InnoVersion> for u8 {
-    fn eq(
-        &self,
-        &InnoVersion {
-            major,
-            minor,
-            patch,
-            revision,
-            ..
-        }: &InnoVersion,
-    ) -> bool {
-        (*self, 0, 0, 0) == (major, minor, patch, revision)
+    fn eq(&self, version: &InnoVersion) -> bool {
+        (*self, 0, 0, 0) == version.as_tuple()
+    }
+}
+
+impl PartialEq<InnoVersion> for f32 {
+    fn eq(&self, version: &InnoVersion) -> bool {
+        (*self as u8, ((self * 10.0) as u8) % 10, 0, 0) == version.as_tuple()
     }
 }
 
 impl PartialOrd<(u8, u8, u8, u8)> for InnoVersion {
-    fn partial_cmp(&self, &(major, minor, patch, revision): &(u8, u8, u8, u8)) -> Option<Ordering> {
-        self.partial_cmp(&Self::new(major, minor, patch, revision))
+    fn partial_cmp(&self, version: &(u8, u8, u8, u8)) -> Option<Ordering> {
+        self.as_tuple().partial_cmp(version)
     }
 }
 
@@ -308,63 +330,44 @@ impl PartialOrd<u8> for InnoVersion {
     }
 }
 
+impl PartialOrd<f32> for InnoVersion {
+    fn partial_cmp(&self, &version: &f32) -> Option<Ordering> {
+        self.partial_cmp(&Self::new(
+            version as u8,
+            ((version * 10.0) as u8) % 10,
+            0,
+            0,
+        ))
+    }
+}
+
 impl PartialOrd<InnoVersion> for (u8, u8, u8, u8) {
-    fn partial_cmp(
-        &self,
-        &InnoVersion {
-            major,
-            minor,
-            patch,
-            revision,
-            ..
-        }: &InnoVersion,
-    ) -> Option<Ordering> {
-        self.partial_cmp(&(major, minor, patch, revision))
+    fn partial_cmp(&self, version: &InnoVersion) -> Option<Ordering> {
+        self.partial_cmp(&version.as_tuple())
     }
 }
 
 impl PartialOrd<InnoVersion> for (u8, u8, u8) {
-    fn partial_cmp(
-        &self,
-        &InnoVersion {
-            major,
-            minor,
-            patch,
-            revision,
-            ..
-        }: &InnoVersion,
-    ) -> Option<Ordering> {
-        (self.0, self.1, self.2, 0).partial_cmp(&(major, minor, patch, revision))
+    fn partial_cmp(&self, version: &InnoVersion) -> Option<Ordering> {
+        (self.0, self.1, self.2, 0).partial_cmp(&version.as_tuple())
     }
 }
 
 impl PartialOrd<InnoVersion> for (u8, u8) {
-    fn partial_cmp(
-        &self,
-        &InnoVersion {
-            major,
-            minor,
-            patch,
-            revision,
-            ..
-        }: &InnoVersion,
-    ) -> Option<Ordering> {
-        (self.0, self.1, 0, 0).partial_cmp(&(major, minor, patch, revision))
+    fn partial_cmp(&self, version: &InnoVersion) -> Option<Ordering> {
+        (self.0, self.1, 0, 0).partial_cmp(&version.as_tuple())
     }
 }
 
 impl PartialOrd<InnoVersion> for u8 {
-    fn partial_cmp(
-        &self,
-        &InnoVersion {
-            major,
-            minor,
-            patch,
-            revision,
-            ..
-        }: &InnoVersion,
-    ) -> Option<Ordering> {
-        (*self, 0, 0, 0).partial_cmp(&(major, minor, patch, revision))
+    fn partial_cmp(&self, version: &InnoVersion) -> Option<Ordering> {
+        (*self, 0, 0, 0).partial_cmp(&version.as_tuple())
+    }
+}
+
+impl PartialOrd<InnoVersion> for f32 {
+    fn partial_cmp(&self, version: &InnoVersion) -> Option<Ordering> {
+        (*self as u8, ((self * 10.0) as u8) % 10, 0, 0).partial_cmp(&version.as_tuple())
     }
 }
 
@@ -374,18 +377,18 @@ mod tests {
 
     use rstest::rstest;
 
-    use super::{InnoVersion, VersionFlags};
+    use super::{InnoVersion, VersionVariant};
 
     #[rstest]
     #[case(b"", InnoVersion::new(0, 0, 0, 0))]
     #[case(b"Inno Setup Setup Data (1.3.3)", InnoVersion::new(1, 3, 3, 0))]
     #[case(
         b"Inno Setup Setup Data (1.3.12) with ISX (1.3.12.1)",
-        InnoVersion::new_with_variant(1, 3, 12, 0, VersionFlags::ISX)
+        InnoVersion::new_with_variant(1, 3, 12, 0, VersionVariant::ISX)
     )]
     #[case(
         b"Inno Setup Setup Data (3.0.3) with ISX (3.0.0)",
-        InnoVersion::new_with_variant(3, 0, 3, 0, VersionFlags::ISX)
+        InnoVersion::new_with_variant(3, 0, 3, 0, VersionVariant::ISX)
     )]
     #[case(
         b"My Inno Setup Extensions Setup Data (3.0.4)",
@@ -398,32 +401,32 @@ mod tests {
     #[case(b"Inno Setup Setup Data (5.3.10)", InnoVersion::new(5, 3, 10, 0))]
     #[case(
         b"Inno Setup Setup Data (5.3.10) (u)",
-        InnoVersion::new_with_variant(5, 3, 10, 0, VersionFlags::UNICODE)
+        InnoVersion::new_with_variant(5, 3, 10, 0, VersionVariant::UNICODE)
     )]
     #[case(
         b"Inno Setup Setup Data (5.5.7) (U)",
-        InnoVersion::new_with_variant(5, 5, 7, 0, VersionFlags::UNICODE)
+        InnoVersion::new_with_variant(5, 5, 7, 0, VersionVariant::UNICODE)
     )]
     #[case(b"Inno Setup Setup Data (5.6.0)", InnoVersion::new(5, 6, 0, 0))]
     #[case(
         b"Inno Setup Setup Data (5.6.0) (u)",
-        InnoVersion::new_with_variant(5, 6, 0, 0, VersionFlags::UNICODE)
+        InnoVersion::new_with_variant(5, 6, 0, 0, VersionVariant::UNICODE)
     )]
     #[case(
         b"Inno Setup Setup Data (6.1.0) (u)",
-        InnoVersion::new_with_variant(6, 1, 0, 0, VersionFlags::UNICODE)
+        InnoVersion::new_with_variant(6, 1, 0, 0, VersionVariant::UNICODE)
     )]
     #[case(
         b"Inno Setup Setup Data (6.2.0) (u)",
-        InnoVersion::new_with_variant(6, 2, 0, 0, VersionFlags::UNICODE)
+        InnoVersion::new_with_variant(6, 2, 0, 0, VersionVariant::UNICODE)
     )]
     #[case(
         b"Inno Setup Setup Data (6.3.0)",
-        InnoVersion::new_with_variant(6, 3, 0, 0, VersionFlags::UNICODE)
+        InnoVersion::new_with_variant(6, 3, 0, 0, VersionVariant::UNICODE)
     )]
     #[case(
         b"Inno Setup Setup Data (6.4.0.1)",
-        InnoVersion::new_with_variant(6, 4, 0, 1, VersionFlags::UNICODE)
+        InnoVersion::new_with_variant(6, 4, 0, 1, VersionVariant::UNICODE)
     )]
     fn inno_version_from_bytes(#[case] input: &[u8], #[case] expected_inno_version: InnoVersion) {
         assert_eq!(
@@ -435,8 +438,8 @@ mod tests {
     #[test]
     fn inno_version_equality() {
         let version = InnoVersion::new(1, 2, 3, 4);
-        let unicode_version = InnoVersion::new_with_variant(1, 2, 3, 4, VersionFlags::UNICODE);
-        let isx_version = InnoVersion::new_with_variant(1, 2, 3, 4, VersionFlags::ISX);
+        let unicode_version = InnoVersion::new_with_variant(1, 2, 3, 4, VersionVariant::UNICODE);
+        let isx_version = InnoVersion::new_with_variant(1, 2, 3, 4, VersionVariant::ISX);
 
         // Check that version flags aren't included in comparison
         assert_eq!(version, unicode_version);
@@ -509,6 +512,39 @@ mod tests {
         assert_eq!(
             1.partial_cmp(&InnoVersion::new(1, 0, 0, 0)),
             Some(Ordering::Equal)
+        );
+    }
+
+    #[test]
+    fn inno_version_float_equality() {
+        // Check (in)equality of `PartialEq<f32> for InnoVersion`
+        assert_eq!(InnoVersion::new(1, 2, 0, 0), 1.2);
+        assert_ne!(InnoVersion::new(1, 2, 3, 4), 1.2);
+        assert_ne!(InnoVersion::new(1, 2, 3, 4), 1.234);
+
+        // Check that `PartialCmp<f32> for InnoVersion` returns the same equality
+        assert_eq!(
+            InnoVersion::new(1, 2, 0, 0).partial_cmp(&1.2),
+            Some(Ordering::Equal)
+        );
+        assert_eq!(
+            InnoVersion::new(1, 2, 3, 4).partial_cmp(&1.2),
+            Some(Ordering::Greater)
+        );
+
+        // Check (in)equality of `PartialEq<InnoVersion> for f32`
+        assert_eq!(1.2, InnoVersion::new(1, 2, 0, 0));
+        assert_ne!(1.2, InnoVersion::new(1, 2, 3, 4));
+        assert_ne!(1.234, InnoVersion::new(1, 2, 3, 4));
+
+        // Check that `PartialCmp<InnoVersion> for f32` returns the same equality
+        assert_eq!(
+            1.2.partial_cmp(&InnoVersion::new(1, 2, 0, 0)),
+            Some(Ordering::Equal)
+        );
+        assert_eq!(
+            1.2.partial_cmp(&InnoVersion::new(1, 2, 3, 4)),
+            Some(Ordering::Less)
         );
     }
 

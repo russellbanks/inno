@@ -4,18 +4,18 @@ use encoding_rs::Encoding;
 use zerocopy::LE;
 
 use super::Language;
-use crate::{ReadBytesExt, encoding::InnoValue};
+use crate::{ReadBytesExt, string::PascalString};
 
 #[derive(Clone, Debug, Default)]
 pub struct Message {
-    pub name: String,
-    pub value: String,
-    pub language_index: i32,
+    name: Option<String>,
+    value: Option<PascalString>,
+    language_index: i32,
 }
 
 impl Message {
-    pub fn read_from<R>(
-        mut src: R,
+    pub fn read<R>(
+        mut reader: R,
         languages: &[Language],
         codepage: &'static Encoding,
     ) -> io::Result<Self>
@@ -23,26 +23,46 @@ impl Message {
         R: io::Read,
     {
         let mut message = Self {
-            name: InnoValue::string_from(&mut src, codepage)?.unwrap_or_default(),
+            name: reader.read_decoded_pascal_string(codepage)?,
             ..Self::default()
         };
 
-        let value = InnoValue::encoded_from(&mut src)?.unwrap_or_default();
+        message.value = reader.read_pascal_string()?;
 
-        message.language_index = src.read_i32::<LE>()?;
+        message.language_index = reader.read_i32::<LE>()?;
 
         let mut codepage = codepage;
-        if message.language_index >= 0 {
-            if let Some(language) = usize::try_from(message.language_index)
-                .ok()
-                .and_then(|index| languages.get(index))
-            {
-                codepage = language.codepage;
-            }
+        if let Ok(index) = usize::try_from(message.language_index)
+            && let Some(language) = languages.get(index)
+        {
+            codepage = language.codepage();
         }
 
-        message.value = value.into_string(codepage);
+        if let Some(value) = &mut message.value {
+            value.decode(codepage);
+        }
 
         Ok(message)
+    }
+
+    /// Returns the name of the message as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    /// Returns the value of the message as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn value(&self) -> Option<&str> {
+        self.value.as_ref().map(PascalString::as_str)
+    }
+
+    /// Returns the language index of the message.
+    #[must_use]
+    #[inline]
+    pub const fn language_index(&self) -> i32 {
+        self.language_index
     }
 }

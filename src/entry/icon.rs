@@ -6,91 +6,199 @@ use zerocopy::{Immutable, KnownLayout, LE, TryFromBytes};
 
 use super::Condition;
 use crate::{
-    InnoVersion, ReadBytesExt, WindowsVersionRange, encoding::InnoValue,
-    header::flag_reader::read_flags::read_flags,
+    InnoVersion, ReadBytesExt, WindowsVersionRange, header::flag_reader::read_flags::read_flags,
 };
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Icon {
-    pub name: Option<String>,
-    pub filename: Option<String>,
-    pub parameters: Option<String>,
-    pub working_directory: Option<String>,
-    pub file: Option<String>,
-    pub comment: Option<String>,
-    pub app_user_model_id: Option<String>,
-    pub app_user_model_toast_activator_clsid: String,
-    pub index: i32,
-    pub show_command: i32,
-    pub close_on_exit: CloseSetting,
-    pub hotkey: u16,
-    pub flags: IconFlags,
+    name: Option<String>,
+    filename: Option<String>,
+    parameters: Option<String>,
+    working_directory: Option<String>,
+    file: Option<String>,
+    comment: Option<String>,
+    app_user_model_id: Option<String>,
+    app_user_model_toast_activator_clsid: String,
+    index: i32,
+    show_command: i32,
+    close_on_exit: CloseSetting,
+    hotkey: u16,
+    flags: IconFlags,
 }
 
 impl Icon {
-    pub fn read_from<R>(
-        mut src: R,
+    pub fn read<R>(
+        mut reader: R,
         codepage: &'static Encoding,
         version: InnoVersion,
     ) -> io::Result<Self>
     where
         R: io::Read,
     {
-        if version < (1, 3, 0) {
-            let _uncompressed_size = src.read_u32::<LE>()?;
+        if version < 1.3 {
+            let _uncompressed_size = reader.read_u32::<LE>()?;
         }
 
         let mut icon = Self {
-            name: InnoValue::string_from(&mut src, codepage)?,
-            filename: InnoValue::string_from(&mut src, codepage)?,
-            parameters: InnoValue::string_from(&mut src, codepage)?,
-            working_directory: InnoValue::string_from(&mut src, codepage)?,
-            file: InnoValue::string_from(&mut src, codepage)?,
-            comment: InnoValue::string_from(&mut src, codepage)?,
+            name: reader.read_decoded_pascal_string(codepage)?,
+            filename: reader.read_decoded_pascal_string(codepage)?,
+            parameters: reader.read_decoded_pascal_string(codepage)?,
+            working_directory: reader.read_decoded_pascal_string(codepage)?,
+            file: reader.read_decoded_pascal_string(codepage)?,
+            comment: reader.read_decoded_pascal_string(codepage)?,
             ..Self::default()
         };
 
-        Condition::read_from(&mut src, codepage, version)?;
+        Condition::read(&mut reader, codepage, version)?;
 
         if version >= (5, 3, 5) {
-            icon.app_user_model_id = InnoValue::string_from(&mut src, codepage)?;
+            icon.app_user_model_id = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        if version >= (6, 1, 0) {
+        if version >= 6.1 {
             let mut buf = [0; 16];
-            src.read_exact(&mut buf)?;
+            reader.read_exact(&mut buf)?;
             icon.app_user_model_toast_activator_clsid = codepage.decode(&buf).0.into_owned();
         }
 
-        WindowsVersionRange::read_from(&mut src, version)?;
+        WindowsVersionRange::read_from(&mut reader, version)?;
 
-        icon.index = src.read_i32::<LE>()?;
+        icon.index = reader.read_i32::<LE>()?;
 
-        icon.show_command = if version >= (1, 3, 24) {
-            src.read_i32::<LE>()?
-        } else {
-            1
-        };
+        if version >= (1, 3, 24) {
+            icon.show_command = reader.read_i32::<LE>()?;
+        }
 
         if version >= (1, 3, 15) {
-            icon.close_on_exit = CloseSetting::try_read_from_io(&mut src)?;
+            icon.close_on_exit = CloseSetting::try_read_from_io(&mut reader)?;
         }
 
         if version >= (2, 0, 7) {
-            icon.hotkey = src.read_u16::<LE>()?;
+            icon.hotkey = reader.read_u16::<LE>()?;
         }
 
-        icon.flags = read_flags!(&mut src,
+        icon.flags = read_flags!(&mut reader,
             IconFlags::NEVER_UNINSTALL,
             if version < (1, 3, 26) => IconFlags::RUN_MINIMIZED,
             [IconFlags::CREATE_ONLY_IF_FILE_EXISTS, IconFlags::USE_APP_PATHS],
             if ((5, 0, 3)..(6, 3, 0)).contains(&version) => IconFlags::FOLDER_SHORTCUT,
             if version >= (5, 4, 2) => IconFlags::EXCLUDE_FROM_SHOW_IN_NEW_INSTALL,
-            if version >= (5, 5, 0) => IconFlags::PREVENT_PINNING,
-            if version >= (6, 1, 0) => IconFlags::HAS_APP_USER_MODEL_TOAST_ACTIVATOR_CLSID
+            if version >= 5.5 => IconFlags::PREVENT_PINNING,
+            if version >= 6.1 => IconFlags::HAS_APP_USER_MODEL_TOAST_ACTIVATOR_CLSID
         )?;
 
         Ok(icon)
+    }
+
+    /// Returns the name of the icon as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    /// Returns the filename of the icon as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn filename(&self) -> Option<&str> {
+        self.filename.as_deref()
+    }
+
+    /// Returns the parameters of the icon as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn parameters(&self) -> Option<&str> {
+        self.parameters.as_deref()
+    }
+
+    /// Returns the working directory of the icon as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn working_directory(&self) -> Option<&str> {
+        self.working_directory.as_deref()
+    }
+
+    /// Returns the file of the icon as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn file(&self) -> Option<&str> {
+        self.file.as_deref()
+    }
+
+    /// Returns the comment of the icon as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn comment(&self) -> Option<&str> {
+        self.comment.as_deref()
+    }
+
+    /// Returns the AppUserModelId of the icon as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn app_user_model_id(&self) -> Option<&str> {
+        self.app_user_model_id.as_deref()
+    }
+
+    /// Returns the AppUserModelToastActivatorClsid of the icon as a string slice.
+    #[must_use]
+    #[inline]
+    pub fn app_user_model_toast_activator_clsid(&self) -> &str {
+        self.app_user_model_toast_activator_clsid.as_str()
+    }
+
+    /// Returns the index of the icon.
+    #[must_use]
+    #[inline]
+    pub const fn index(&self) -> i32 {
+        self.index
+    }
+
+    /// Returns the show command of the icon.
+    #[must_use]
+    #[inline]
+    pub const fn show_command(&self) -> i32 {
+        self.show_command
+    }
+
+    /// Returns the close on exit setting of the icon.
+    #[must_use]
+    #[inline]
+    pub const fn close_on_exit(&self) -> CloseSetting {
+        self.close_on_exit
+    }
+
+    /// Returns the hotkey of the icon.
+    #[must_use]
+    #[inline]
+    pub const fn hotkey(&self) -> u16 {
+        self.hotkey
+    }
+
+    /// Returns the flags of the icon.
+    #[must_use]
+    #[inline]
+    pub const fn flags(&self) -> IconFlags {
+        self.flags
+    }
+}
+
+impl Default for Icon {
+    fn default() -> Self {
+        Self {
+            name: None,
+            filename: None,
+            parameters: None,
+            working_directory: None,
+            file: None,
+            comment: None,
+            app_user_model_id: None,
+            app_user_model_toast_activator_clsid: String::new(),
+            index: 0,
+            show_command: 1,
+            close_on_exit: CloseSetting::default(),
+            hotkey: 0,
+            flags: IconFlags::default(),
+        }
     }
 }
 

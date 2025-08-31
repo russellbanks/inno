@@ -27,5 +27,5 @@ chrono = ["dep:chrono", "nt-time/chrono"]
 lzma-static = ["liblzma/static"]
 
 [dev-dependencies]
-rstest = "0.25"
+rstest = "0.26"
 

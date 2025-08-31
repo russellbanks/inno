@@ -10,6 +10,8 @@ use chrono::{DateTime, Utc};
 use compression_filter::CompressionFilter;
 pub use file::File;
 pub use flags::FileLocationFlags;
+#[cfg(feature = "jiff")]
+use jiff::Timestamp;
 use nt_time::FileTime;
 pub use sign::SignMode;
 use zerocopy::LE;
@@ -199,12 +201,23 @@ impl FileLocation {
         self.file_time
     }
 
-    /// Returns the file's create at time as a [`DateTime<Utc>`].
+    /// Returns the file's created at time as a [`DateTime<Utc>`].
     #[cfg(feature = "chrono")]
     #[must_use]
     #[inline]
     pub fn date_time(&self) -> DateTime<Utc> {
         self.file_time.into()
+    }
+
+    /// Returns the file's created at time as a [`Timestamp`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Err`] if the time is out of range for [`Timestamp`].
+    #[cfg(feature = "jiff")]
+    #[inline]
+    pub fn timestamp(&self) -> Result<Timestamp, jiff::Error> {
+        self.file_time.try_into()
     }
 
     /// Returns the file version.

@@ -12,7 +12,7 @@ mod language_detection;
 mod log_mode;
 mod privilege_level;
 mod privileges_required_overrides;
-mod wizard_resize_percent;
+mod wizard_size_percent;
 mod yes_no;
 
 use std::{fmt, io};
@@ -26,13 +26,13 @@ pub use entry_counts::EntryCounts;
 use flag_reader::read_flags::read_flags;
 pub use flags::HeaderFlags;
 pub use image_alpha_format::ImageAlphaFormat;
-pub use inno_style::InnoStyle;
+pub use inno_style::WizardStyle;
 pub use install_verbosity::InstallVerbosity;
 pub use language_detection::LanguageDetection;
 pub use log_mode::LogMode;
 pub use privilege_level::PrivilegeLevel;
 pub use privileges_required_overrides::PrivilegesRequiredOverrides;
-pub use wizard_resize_percent::WizardResizePercent;
+pub use wizard_size_percent::WizardSizePercent;
 use yes_no::YesNoStr;
 use zerocopy::LE;
 
@@ -97,15 +97,15 @@ pub struct Header {
     background_color2: Color,
     image_back_color: Color,
     small_image_back_color: Color,
-    wizard_style: InnoStyle,
-    wizard_resize_percent: WizardResizePercent,
+    wizard_style: WizardStyle,
+    wizard_size_percent: WizardSizePercent,
     wizard_image_alpha_format: ImageAlphaFormat,
     encryption_header: Option<EncryptionHeader>,
     extra_disk_space_required: u64,
     slices_per_disk: u32,
     install_verbosity: InstallVerbosity,
     uninstall_log_mode: LogMode,
-    uninstall_style: InnoStyle,
+    uninstall_style: WizardStyle,
     dir_exists_warning: AutoBool,
     privileges_required: PrivilegeLevel,
     privileges_required_overrides_allowed: PrivilegesRequiredOverrides,
@@ -258,8 +258,8 @@ impl Header {
             header.small_image_back_color = reader.read_t::<Color>()?;
         }
         if version >= 6 {
-            header.wizard_style = InnoStyle::try_read_from_io(&mut reader)?;
-            header.wizard_resize_percent = reader.read_t::<WizardResizePercent>()?;
+            header.wizard_style = WizardStyle::try_read_from_io(&mut reader)?;
+            header.wizard_size_percent = reader.read_t::<WizardSizePercent>()?;
         }
         if version >= (5, 5, 7) {
             header.wizard_image_alpha_format = ImageAlphaFormat::try_read_from_io(&mut reader)?;
@@ -300,9 +300,9 @@ impl Header {
             header.uninstall_log_mode = LogMode::try_read_from_io(&mut reader)?;
         }
         if version >= 5 {
-            header.uninstall_style = InnoStyle::Modern;
+            header.uninstall_style = WizardStyle::Modern;
         } else if version >= 2 || (version.is_isx() && version >= (1, 3, 13)) {
-            header.uninstall_style = InnoStyle::try_read_from_io(&mut reader)?;
+            header.uninstall_style = WizardStyle::try_read_from_io(&mut reader)?;
         }
         if version >= (1, 3, 6) {
             header.dir_exists_warning = AutoBool::try_read_from_io(&mut reader)?;
@@ -1043,16 +1043,16 @@ impl Header {
     #[doc(alias = "WizardStyle")]
     #[must_use]
     #[inline]
-    pub const fn wizard_style(&self) -> InnoStyle {
+    pub const fn wizard_style(&self) -> WizardStyle {
         self.wizard_style
     }
 
-    /// Returns the wizard resize percent (x, y).
-    #[doc(alias = "WizardResizePercent")]
+    /// Returns the wizard size percent (horizontal, vertical).
+    #[doc(alias = "WizardSizePercent")]
     #[must_use]
     #[inline]
-    pub const fn wizard_resize_percent(&self) -> WizardResizePercent {
-        self.wizard_resize_percent
+    pub const fn wizard_size_percent(&self) -> WizardSizePercent {
+        self.wizard_size_percent
     }
 
     /// Returns the image alpha format.
@@ -1110,7 +1110,7 @@ impl Header {
     /// In Inno Setup v5 and above, this is always `Modern`.
     #[must_use]
     #[inline]
-    pub const fn uninstall_style(&self) -> InnoStyle {
+    pub const fn uninstall_style(&self) -> WizardStyle {
         self.uninstall_style
     }
 
@@ -1296,7 +1296,7 @@ impl fmt::Debug for Header {
             .field("ImageBackColor", &self.image_background_color())
             .field("SmallImageBackColor", &self.small_image_background_color())
             .field("WizardStyle", &self.wizard_style())
-            .field("WizardResizePercent", &self.wizard_resize_percent())
+            .field("WizardSizePercent", &self.wizard_size_percent())
             .field("ImageAlphaFormat", &self.wizard_image_alpha_format())
             // Skip password salt
             .field("ExtraDiskSpaceRequired", &self.extra_disk_space_required())

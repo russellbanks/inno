@@ -25,7 +25,7 @@ impl FileVerificationType {
     }
 
     #[must_use]
-    pub const fn as_str(&self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Self::None => "None",
             Self::Hash => "Hash",
@@ -56,7 +56,7 @@ mod tests {
 
     #[test]
     fn read_none() {
-        let buf = [0, 171, 248, 115];
+        let buf = [0, 171, 248, 115]; // First byte is 0 for 'No verification'
         let reader = Cursor::new(buf);
         assert_eq!(
             FileVerificationType::try_read_from_io(reader).unwrap(),

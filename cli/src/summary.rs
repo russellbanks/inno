@@ -171,6 +171,11 @@ fn rows(header: &'_ Header) -> Vec<Row<'_>> {
     }
     rows.push(Row::new(["Wizard style", header.wizard_style().as_str()]));
     rows.push(Row::new([
+        Cow::Borrowed("Wizard size percent"),
+        Cow::Owned(header.wizard_size_percent().to_string()),
+    ]));
+
+    rows.push(Row::new([
         "Wizard image alpha format",
         header.wizard_image_alpha_format().as_str(),
     ]));

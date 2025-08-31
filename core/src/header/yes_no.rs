@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct YesNoStr<'a>(&'a str);
 
@@ -29,6 +31,12 @@ impl AsRef<str> for YesNoStr<'_> {
     #[inline]
     fn as_ref(&self) -> &str {
         self.as_str()
+    }
+}
+
+impl fmt::Display for YesNoStr<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_str().fmt(f)
     }
 }
 

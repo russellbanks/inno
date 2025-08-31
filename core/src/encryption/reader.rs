@@ -12,7 +12,7 @@ impl<R: io::Read> EncryptionHeaderReader<R> {
     pub const fn get_ref(&self) -> &R {
         match self {
             Self::CRC32(reader) => reader.get_ref(),
-            Self::None(reader) => &reader,
+            Self::None(reader) => reader,
         }
     }
 

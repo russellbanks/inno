@@ -50,8 +50,9 @@ impl Color {
     /// assert_eq!(color.to_rgba(), (0x12, 0x34, 0x56, 0x78));
     /// ```
     #[must_use]
-    pub fn to_rgba(self) -> (u8, u8, u8, u8) {
-        self.to_bytes().into()
+    pub const fn to_rgba(self) -> (u8, u8, u8, u8) {
+        let [alpha, blue, green, red] = self.0.to_bytes();
+        (red, green, blue, alpha)
     }
 
     /// Returns the `red`, `green`, `blue`, and `alpha` values as an array.
@@ -66,7 +67,8 @@ impl Color {
     /// ```
     #[must_use]
     pub const fn to_bytes(self) -> [u8; size_of::<u32>()] {
-        self.get().to_be_bytes()
+        let [alpha, blue, green, red] = self.0.to_bytes();
+        [red, green, blue, alpha]
     }
 
     /// Returns the inner `u32`.
@@ -96,7 +98,7 @@ impl Color {
     /// assert_eq!(color.red(), 0x12);
     /// ```
     #[must_use]
-    pub fn red(self) -> u8 {
+    pub const fn red(self) -> u8 {
         self.0.to_bytes()[3]
     }
 
@@ -111,7 +113,7 @@ impl Color {
     /// assert_eq!(color.green(), 0x34);
     /// ```
     #[must_use]
-    pub fn green(self) -> u8 {
+    pub const fn green(self) -> u8 {
         self.0.to_bytes()[2]
     }
 
@@ -126,7 +128,7 @@ impl Color {
     /// assert_eq!(color.blue(), 0x56);
     /// ```
     #[must_use]
-    pub fn blue(self) -> u8 {
+    pub const fn blue(self) -> u8 {
         self.0.to_bytes()[1]
     }
 

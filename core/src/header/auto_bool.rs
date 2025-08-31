@@ -1,6 +1,6 @@
 use std::io;
 
-use zerocopy::{Immutable, KnownLayout, TryFromBytes};
+use zerocopy::{Immutable, KnownLayout, TryFromBytes, ValidityError, try_transmute};
 
 use super::HeaderFlags;
 
@@ -47,5 +47,13 @@ impl AutoBool {
 impl From<bool> for AutoBool {
     fn from(value: bool) -> Self {
         if value { Self::Yes } else { Self::No }
+    }
+}
+
+impl TryFrom<u8> for AutoBool {
+    type Error = ValidityError<u8, Self>;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        try_transmute!(value)
     }
 }

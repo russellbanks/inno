@@ -2,13 +2,7 @@ use std::{fmt, io};
 
 use thiserror::Error;
 
-use crate::version::InnoVersion;
-
-/// The maximum supported Inno Version by this library.
-///
-/// Inno Setup versions newer than this version are likely to have breaking changes where the
-/// changes have not yet been implemented into this library.
-const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(6, 4, u8::MAX, u8::MAX);
+use super::{Inno, InnoVersion};
 
 #[derive(Error, Debug)]
 pub enum InnoError {
@@ -17,7 +11,8 @@ pub enum InnoError {
     #[error("Unexpected data at end of {0} Inno header stream")]
     UnexpectedExtraData(HeaderStream),
     #[error(
-        "Inno Setup version {0} is newer than the maximum supported version {MAX_SUPPORTED_VERSION}"
+        "Inno Setup version {0} is newer than the maximum supported version {max_version}",
+        max_version = Inno::MAX_SUPPORTED_VERSION
     )]
     UnsupportedVersion(InnoVersion),
     #[error("Unknown Inno setup version: {0}")]
@@ -42,11 +37,19 @@ pub enum HeaderStream {
     Secondary,
 }
 
+impl HeaderStream {
+    /// Returns the header stream name as a static string.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Primary => "Primary",
+            Self::Secondary => "Secondary",
+        }
+    }
+}
+
 impl fmt::Display for HeaderStream {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Primary => f.write_str("Primary"),
-            Self::Secondary => f.write_str("Secondary"),
-        }
+        self.as_str().fmt(f)
     }
 }

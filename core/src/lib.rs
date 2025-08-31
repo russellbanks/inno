@@ -39,9 +39,8 @@ fn main() -> Result<(), inno::error::InnoError> {
     }
 
     println!("Files ({}):", inno.files().len());
-    for f in inno.files() {
-        let dest = f.destination().unwrap_or("");
-        println!("  - {} -> {:?}", dest, f.source());
+    for file in inno.files() {
+        println!("  - {:?} -> {:?}", file.destination(), file.source());
     }
 
     Ok(())
@@ -67,10 +66,8 @@ See the `innex` CLI in this repository for a reference consumer.
 
 # Supported versions
 
-Parsing is supported up to Inno Setup 6.4.x. Newer installers may work but can
-introduce format changes. In that case, you will get
-[`InnoError::UnsupportedVersion`]. The maximum supported version is also
-available at runtime via an internal constant used in error messages.
+Parsing is supported up to Inno Setup 6.5.x. Newer installers may work but can introduce format
+changes. In that case, you will get [InnoError::UnsupportedVersion`].
 
 # Features
 
@@ -162,8 +159,6 @@ use version::{InnoVersion, windows_version::WindowsVersionRange};
 use wizard::Wizard;
 pub use zerocopy;
 
-const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(6, 5, u8::MAX, u8::MAX);
-
 #[derive(Debug)]
 pub struct Inno {
     pub setup_loader: SetupLoader,
@@ -191,6 +186,12 @@ pub struct Inno {
 }
 
 impl Inno {
+    /// The maximum supported Inno Version by this library.
+    ///
+    /// Inno Setup versions newer than this version are likely to have breaking changes where the
+    /// changes have not yet been implemented into this library.
+    pub const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(6, 5, u8::MAX, u8::MAX);
+
     pub fn new<R>(mut reader: R) -> Result<Self, InnoError>
     where
         R: Read + Seek,
@@ -203,7 +204,7 @@ impl Inno {
 
         let inno_version = InnoVersion::read(&mut reader)?;
 
-        if inno_version > MAX_SUPPORTED_VERSION {
+        if inno_version > Self::MAX_SUPPORTED_VERSION {
             return Err(InnoError::UnsupportedVersion(inno_version));
         }
 

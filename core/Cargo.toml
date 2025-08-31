@@ -12,7 +12,7 @@ keywords = ["innosetup", "installer"]
 [dependencies]
 bitflags = { version = "2", default-features = false }
 chrono = { version = "0.4.41", default-features = false, optional = true }
-codepage = { version = "0.1", default-features = false }
+codepage = { version = "0.1.2", default-features = false }
 crc32fast = { version = "1", default-features = false }
 encoding_rs = { version = "0.8.29", default-features = false, features = ["alloc"] }
 flate2 = { version = "1", default-features = false, features = ["zlib"] }

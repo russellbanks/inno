@@ -10,7 +10,7 @@ license.workspace = true
 keywords = ["innosetup", "installer"]
 
 [dependencies]
-bitflags = { version = "2", default-features = false }
+bitflags = { version = "2.9.3", default-features = false }
 chrono = { version = "0.4.41", default-features = false, optional = true }
 codepage = { version = "0.1", default-features = false }
 crc32fast = { version = "1", default-features = false }

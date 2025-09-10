@@ -51,7 +51,7 @@ jobs:
           cargo msrv verify -- cargo check --package innex
 
       - name: Find actual MSRV
-        if: steps.verify.outcome == 'failure'
+        if: ${{ failure() && steps.verify.conclusion == 'failure' }}
         run: |
           cargo msrv find -- --package inno
           cargo msrv find -- --package innex

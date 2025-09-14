@@ -27,6 +27,18 @@ jobs:
       - name: Test powerset
         run: cargo hack test --workspace --feature-powerset --optional-deps
 
+  publish_dry_run:
+    name: Publish dry run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install cargo-hack
+        uses: moonrepo/setup-rust@v1
+        with:
+          bins: cargo-hack
+
       - name: Publish dry run
         run: cargo hack publish --workspace --no-dev-deps --dry-run --allow-dirty
 

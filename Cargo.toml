@@ -23,9 +23,9 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 anstream = "0.6.20"
 anyhow = "1.0.99"
-bitflags = "2.9.3"
+bitflags = "2.9.4"
 camino = "1.1.12"
-clap = { version = "4.5.46", features = ["derive"] }
+clap = { version = "4.5.47", features = ["derive"] }
 crossterm = "0.29.0"
 inno = { version = "0.2.0", path = "core", features = ["chrono"] }
 itertools = { version = "0.14.0", default-features = false }

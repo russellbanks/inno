@@ -11,17 +11,17 @@ keywords = ["innosetup", "installer"]
 
 [dependencies]
 bitflags = { version = "2", default-features = false }
-chrono = { version = "0.4.41", default-features = false, optional = true }
+chrono = { version = "0.4", default-features = false, optional = true }
 codepage = { version = "0.1", default-features = false }
-crc32fast = { version = "1", default-features = false }
+crc32fast = { version = "1.3", default-features = false }
 encoding_rs = { version = "0.8.29", default-features = false, features = ["alloc"] }
-flate2 = { version = "1", default-features = false, features = ["zlib"] }
+flate2 = { version = "1.0.13", default-features = false, features = ["zlib"] }
 itertools = { version = "0.14", default-features = false }
-jiff = { version = "0.2.15", default-features = false, optional = true }
+jiff = { version = "0.2", default-features = false, optional = true }
 liblzma = { version = "0.4", default-features = false, features = ["bindgen"] }
 nt-time = { version = "0.12", default-features = false }
 thiserror = { version = "2", default-features = false }
-zerocopy = { version = "0.8", default-features = false, features = ["derive", "std"] }
+zerocopy = { version = "0.8.27", default-features = false, features = ["derive", "std"] }
 
 [features]
 chrono = ["dep:chrono", "nt-time/chrono"]

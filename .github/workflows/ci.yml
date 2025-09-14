@@ -67,7 +67,9 @@ jobs:
         uses: moonrepo/setup-rust@v1
         with:
           bins: cargo-hack, cargo-minimal-versions
-          channel: nightly
+
+      - name: Add nightly Rust toolchain
+        run: rustup toolchain add nightly --profile minimal --no-self-update
 
       - name: Check minimal versions
-        run: cargo minimal-versions check
+        run: cargo minimal-versions check --workspace

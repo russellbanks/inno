@@ -25,12 +25,10 @@ jobs:
           channel: ${{ matrix.channel }}
 
       - name: Test powerset
-        run: |
-          cargo hack --package inno test --feature-powerset --optional-deps
-          cargo hack --package innex test --feature-powerset --optional-deps
+        run: cargo hack test --workspace --feature-powerset --optional-deps
 
       - name: Publish dry run
-        run: cargo publish --package inno --dry-run
+        run: cargo hack publish --workspace --no-dev-deps --dry-run --allow-dirty
 
   msrv:
     name: MSRV
@@ -42,19 +40,15 @@ jobs:
       - name: Install cargo-msrv
         uses: moonrepo/setup-rust@v1
         with:
-          bins: cargo-msrv
+          bins: cargo-hack, cargo-msrv
 
       - name: Verify MSRV
         id: verify
-        run: |
-          cargo msrv verify -- cargo check --package inno
-          cargo msrv verify -- cargo check --package innex
+        run: cargo hack --workspace msrv verify
 
       - name: Find actual MSRV
         if: ${{ failure() && steps.verify.conclusion == 'failure' }}
-        run: |
-          cargo msrv find -- --package inno
-          cargo msrv find -- --package innex
+        run: cargo hack --workspace msrv find
 
   minimal_versions:
     name: Minimal dependency versions

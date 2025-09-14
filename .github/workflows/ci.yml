@@ -55,3 +55,19 @@ jobs:
         run: |
           cargo msrv find -- --package inno
           cargo msrv find -- --package innex
+
+  minimal_versions:
+    name: Minimal dependency versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install cargo-minimal-versions
+        uses: moonrepo/setup-rust@v1
+        with:
+          bins: cargo-hack, cargo-minimal-versions
+          channel: nightly
+
+      - name: Check minimal versions
+        run: cargo minimal-versions check

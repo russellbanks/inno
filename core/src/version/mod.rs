@@ -212,11 +212,15 @@ impl InnoVersion {
 
 impl fmt::Display for InnoVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}.{}.{}.{}",
-            self.major, self.minor, self.patch, self.revision
-        )?;
+        write!(f, "{}.{}", self.major, self.minor)?;
+
+        if self.patch != u8::MAX {
+            write!(f, ".{}", self.patch)?;
+
+            if self.revision != u8::MAX {
+                write!(f, ".{}", self.revision)?;
+            }
+        }
 
         if self.is_16_bit() {
             write!(f, " 16-bit")?;

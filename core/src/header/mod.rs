@@ -97,6 +97,8 @@ pub struct Header {
     background_color2: Color,
     image_back_color: Color,
     small_image_back_color: Color,
+    image_back_color_dynamic_dark: Color,
+    small_image_back_color_dynamic_dark: Color,
     wizard_style: WizardStyle,
     wizard_size_percent: WizardSizePercent,
     wizard_image_alpha_format: ImageAlphaFormat,
@@ -257,9 +259,14 @@ impl Header {
         if ((2, 0, 0)..(5, 0, 4)).contains(&version) || version.is_isx() {
             header.small_image_back_color = reader.read_t::<Color>()?;
         }
+        if (6.0..6.6).contains(&version) {
+            header.wizard_style = WizardStyle::try_read_from(&mut reader, version)?;
+        }
         if version >= 6 {
-            header.wizard_style = WizardStyle::try_read_from_io(&mut reader)?;
             header.wizard_size_percent = reader.read_t::<WizardSizePercent>()?;
+        }
+        if version >= 6.6 {
+            header.wizard_style = WizardStyle::try_read_from(&mut reader, version)?;
         }
         if version >= (5, 5, 7) {
             header.wizard_image_alpha_format = ImageAlphaFormat::try_read_from_io(&mut reader)?;
@@ -286,6 +293,10 @@ impl Header {
             header.image_back_color = reader.read_t::<Color>()?;
             header.small_image_back_color = reader.read_t::<Color>()?;
         }
+        if version >= 6.6 {
+            header.image_back_color_dynamic_dark = reader.read_t::<Color>()?;
+            header.small_image_back_color_dynamic_dark = reader.read_t::<Color>()?;
+        }
         if version >= 4 {
             header.extra_disk_space_required = reader.read_u64::<LE>()?;
             header.slices_per_disk = reader.read_u32::<LE>()?;
@@ -302,7 +313,7 @@ impl Header {
         if version >= 5 {
             header.uninstall_style = WizardStyle::Modern;
         } else if version >= 2 || (version.is_isx() && version >= (1, 3, 13)) {
-            header.uninstall_style = WizardStyle::try_read_from_io(&mut reader)?;
+            header.uninstall_style = WizardStyle::try_read_from(&mut reader, version)?;
         }
         if version >= (1, 3, 6) {
             header.dir_exists_warning = AutoBool::try_read_from_io(&mut reader)?;
@@ -471,9 +482,15 @@ impl Header {
             if version >= 6 => [
                 HeaderFlags::APP_NAME_HAS_CONSTS,
                 HeaderFlags::USE_PREVIOUS_PRIVILEGES,
-                HeaderFlags::WIZARD_RESIZABLE,
             ],
-            if version >= 6.3 => HeaderFlags::UNINSTALL_LOGGING
+            if (6.0..6.6).contains(&version) => HeaderFlags::WIZARD_RESIZABLE,
+            if version >= 6.3 => HeaderFlags::UNINSTALL_LOGGING,
+            if version >= 6.6 => [
+                HeaderFlags::WIZARD_MODERN,
+                HeaderFlags::WIZARD_BORDER_STYLED,
+                HeaderFlags::WIZARD_KEEP_ASPECT_RATIO,
+                HeaderFlags::WIZARD_LIGHT_BUTTONS_UNSTYLED,
+            ],
         ).map(|mut read_flags| {
             if version < (4, 0, 9) {
                 read_flags |= HeaderFlags::ALLOW_CANCEL_DURING_INSTALL;
@@ -1039,6 +1056,20 @@ impl Header {
         self.small_image_back_color
     }
 
+    /// Returns the image background color used in dark mode when a dynamic theme is enabled.
+    #[must_use]
+    #[inline]
+    pub const fn image_dynamic_background_color(&self) -> Color {
+        self.image_back_color_dynamic_dark
+    }
+
+    /// Returns the small image background color used in dark mode when a dynamic theme is enabled.
+    #[must_use]
+    #[inline]
+    pub const fn small_image_dynamic_background_color(&self) -> Color {
+        self.small_image_back_color_dynamic_dark
+    }
+
     /// Returns the wizard style.
     #[doc(alias = "WizardStyle")]
     #[must_use]
@@ -1293,8 +1324,19 @@ impl fmt::Debug for Header {
             .field("UninstallRunEntryCount", &self.uninstall_run_entry_count())
             .field("BackColor", &self.background_color())
             .field("BackColor2", &self.background_color2())
-            .field("ImageBackColor", &self.image_background_color())
-            .field("SmallImageBackColor", &self.small_image_background_color())
+            .field("WizardImageBackColor", &self.image_background_color())
+            .field(
+                "WizardSmallImageBackColor",
+                &self.small_image_background_color(),
+            )
+            .field(
+                "WizardImageBackColorDynamicDark",
+                &self.image_dynamic_background_color(),
+            )
+            .field(
+                "WizardSmallImageBackColorDynamicDark",
+                &self.small_image_dynamic_background_color(),
+            )
             .field("WizardStyle", &self.wizard_style())
             .field("WizardSizePercent", &self.wizard_size_percent())
             .field("ImageAlphaFormat", &self.wizard_image_alpha_format())

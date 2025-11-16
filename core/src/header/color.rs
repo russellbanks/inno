@@ -49,6 +49,7 @@ impl Color {
     /// let color = Color::new_rgba(0x12, 0x34, 0x56, 0x78);
     /// assert_eq!(color.to_rgba(), (0x12, 0x34, 0x56, 0x78));
     /// ```
+    #[expect(clippy::tuple_array_conversions, reason = "Swapping endianness")]
     #[must_use]
     pub const fn to_rgba(self) -> (u8, u8, u8, u8) {
         let [alpha, blue, green, red] = self.0.to_bytes();

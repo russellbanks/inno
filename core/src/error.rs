@@ -42,8 +42,8 @@ impl HeaderStream {
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Primary => "Primary",
-            Self::Secondary => "Secondary",
+            Self::Primary => "primary",
+            Self::Secondary => "secondary",
         }
     }
 }

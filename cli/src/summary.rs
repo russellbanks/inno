@@ -181,6 +181,26 @@ fn rows(header: &'_ Header) -> Vec<Row<'_>> {
     ]));
 
     rows.push(Row::new([
+        Cow::Borrowed("Wizard image background color"),
+        Cow::Owned(header.image_background_color().to_string()),
+    ]));
+
+    rows.push(Row::new([
+        Cow::Borrowed("Wizard small image background color"),
+        Cow::Owned(header.small_image_background_color().to_string()),
+    ]));
+
+    rows.push(Row::new([
+        Cow::Borrowed("Wizard image dark background color"),
+        Cow::Owned(header.image_dynamic_background_color().to_string()),
+    ]));
+
+    rows.push(Row::new([
+        Cow::Borrowed("Wizard small image dark background color"),
+        Cow::Owned(header.small_image_dynamic_background_color().to_string()),
+    ]));
+
+    rows.push(Row::new([
         Cow::Borrowed("Extra disk space required"),
         Cow::Owned(header.extra_disk_space_required().to_string()),
     ]));
@@ -264,7 +284,7 @@ impl Widget for &mut Summary<'_> {
         );
 
         StatefulWidget::render(
-            Table::new(self.rows.iter().cloned(), [Length(32), Fill(1)])
+            Table::new(self.rows.iter().cloned(), [Length(40), Fill(1)])
                 .header(
                     Row::new(["Name", "Value"]).style(Style::new().add_modifier(Modifier::BOLD)),
                 )

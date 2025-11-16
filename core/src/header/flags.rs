@@ -56,6 +56,10 @@ bitflags! {
         const USE_PREVIOUS_PRIVILEGES = 1 << 48;
         const WIZARD_RESIZABLE = 1 << 49;
         const UNINSTALL_LOGGING = 1 << 50;
+        const WIZARD_MODERN = 1 << 51;
+        const WIZARD_BORDER_STYLED = 1 << 52;
+        const WIZARD_KEEP_ASPECT_RATIO = 1 << 53;
+        const WIZARD_LIGHT_BUTTONS_UNSTYLED = 1 << 54;
 
         // ~~~Obsolete flags~~~
 

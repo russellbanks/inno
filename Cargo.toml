@@ -21,9 +21,9 @@ repository = "https://github.com/russellbanks/inno"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-anstream = "0.6.20"
-anyhow = "1.0.99"
-bitflags = "2.9.4"
+anstream = "0.6.21"
+anyhow = "1.0.100"
+bitflags = "2.10.0"
 camino = "1.1.12"
 clap = { version = "4.5.47", features = ["derive"] }
 crossterm = "0.29.0"

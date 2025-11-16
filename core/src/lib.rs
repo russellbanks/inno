@@ -2,7 +2,7 @@
 Inno is a read-only parser for [Inno Setup](https://jrsoftware.org/isinfo.php) installers (.exe).
 It reads the installer structures so you can inspect an installer without actually running it.
 
-The crate focuses on correctness across a wide range of Inno Setup versions and provides
+This crate focuses on correctness across a wide range of Inno Setup versions and provides
 strongly-typed access to sections like Languages, Files, Tasks, Components, Registry entries, and
 more. It does not execute any installer logic.
 
@@ -66,8 +66,8 @@ See the `innex` CLI in this repository for a reference consumer.
 
 # Supported versions
 
-Parsing is supported up to Inno Setup 6.5.x. Newer installers may work but can introduce format
-changes. In that case, you will get [InnoError::UnsupportedVersion`].
+Parsing is supported up to Inno Setup 6.6.x. Newer installers may work but can introduce format
+changes. In that case, you will get [`InnoError::UnsupportedVersion`].
 
 # Features
 
@@ -98,8 +98,7 @@ older installers.
 
 # Minimum Supported Rust Version (MSRV)
 
-This crate is tested with Rust 1.88 or newer (in this workspace). Newer Rust
-versions are generally recommended.
+This crate is tested with Rust 1.88 or newer. Newer Rust versions are generally recommended.
 
 # Acknowledgements
 
@@ -178,7 +177,7 @@ impl Inno {
     ///
     /// Inno Setup versions newer than this version are likely to have breaking changes where the
     /// changes have not yet been implemented into this library.
-    pub const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(6, 5, u8::MAX, u8::MAX);
+    pub const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(6, 6, u8::MAX, u8::MAX);
 
     pub fn new<R>(mut reader: R) -> Result<Self, InnoError>
     where

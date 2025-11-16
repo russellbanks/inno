@@ -12,6 +12,8 @@ use super::{
 pub struct Wizard {
     images: Vec<Vec<u8>>,
     small_images: Vec<Vec<u8>>,
+    images_dynamic_dark: Vec<Vec<u8>>,
+    small_images_dynamic_dark: Vec<Vec<u8>>,
     decompressor_dll: Vec<u8>,
     decrypt_dll: Vec<u8>,
 }
@@ -27,6 +29,11 @@ impl Wizard {
         };
 
         if version >= 2 || version.is_isx() {
+            wizard.small_images = Self::read_images(&mut reader, version)?;
+        }
+
+        if version >= 6.6 {
+            wizard.images = Self::read_images(&mut reader, version)?;
             wizard.small_images = Self::read_images(&mut reader, version)?;
         }
 

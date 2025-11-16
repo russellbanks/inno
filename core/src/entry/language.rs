@@ -5,26 +5,30 @@ use zerocopy::LE;
 
 use crate::{read::ReadBytesExt, string::PascalString, version::InnoVersion};
 
-/// <https://github.com/jrsoftware/issrc/blob/is-6_5_1/Projects/Src/Shared.Struct.pas#L147>
+/// <https://github.com/jrsoftware/issrc/blob/is-6_6_0/Projects/Src/Shared.Struct.pas#L151>
+///
+/// <https://github.com/jrsoftware/issrc/blob/is-6_6_0/Projects/Src/Shared.LangOptionsSectionDirectives.pas>
 #[derive(Clone, Eq, PartialEq)]
 pub struct Language {
     name: PascalString,
     language_name: PascalString,
+    dialog_font_base_scale_height: u32,
+    dialog_font_base_scale_width: u32,
     dialog_font: PascalString,
-    title_font: PascalString,
+    dialog_font_size: u32,
+    dialog_font_standard_height: u32,
+    title_font: PascalString,     // Obsolete
+    title_font_size: u32,         // Obsolete
+    copyright_font: PascalString, // Obsolete
+    copyright_font_size: u32,     // Obsolete
     welcome_font: PascalString,
-    copyright_font: PascalString,
+    welcome_font_size: u32,
     data: PascalString,
     license_text: PascalString,
     info_before: PascalString,
     info_after: PascalString,
     id: u32,
     codepage: &'static Encoding,
-    dialog_font_size: u32,
-    dialog_font_standard_height: u32,
-    title_font_size: u32,
-    welcome_font_size: u32,
-    copyright_font_size: u32,
     right_to_left: bool,
 }
 
@@ -53,7 +57,9 @@ impl Language {
             language.dialog_font = dialog_font;
         }
 
-        if let Some(title_font) = reader.read_pascal_string()? {
+        if version < 6.6
+            && let Some(title_font) = reader.read_pascal_string()?
+        {
             language.title_font = title_font;
         }
 
@@ -61,7 +67,9 @@ impl Language {
             language.welcome_font = welcome_font;
         }
 
-        if let Some(copyright_font) = reader.read_pascal_string()? {
+        if version < 6.6
+            && let Some(copyright_font) = reader.read_pascal_string()?
+        {
             language.copyright_font = copyright_font;
         }
 
@@ -83,7 +91,11 @@ impl Language {
             }
         }
 
-        language.id = reader.read_u32::<LE>()?;
+        language.id = if version >= 6.6 {
+            reader.read_u16::<LE>()?.into()
+        } else {
+            reader.read_u32::<LE>()?
+        };
 
         if version < (4, 2, 2) {
             if let Ok(codepage) = u16::try_from(language.id)
@@ -120,9 +132,18 @@ impl Language {
             language.dialog_font_standard_height = reader.read_u32::<LE>()?;
         }
 
-        language.title_font_size = reader.read_u32::<LE>()?;
+        if version >= 6.6 {
+            language.dialog_font_base_scale_height = reader.read_u32::<LE>()?;
+            language.dialog_font_base_scale_width = reader.read_u32::<LE>()?;
+        } else {
+            language.title_font_size = reader.read_u32::<LE>()?;
+        }
+
         language.welcome_font_size = reader.read_u32::<LE>()?;
-        language.copyright_font_size = reader.read_u32::<LE>()?;
+
+        if version < 6.6 {
+            language.copyright_font_size = reader.read_u32::<LE>()?;
+        }
 
         if version == (5, 5, 7, 1) {
             reader.read_u32::<LE>()?;
@@ -298,20 +319,22 @@ impl Default for Language {
             name: PascalString::from("default"),
             language_name: PascalString::from("English"),
             dialog_font: PascalString::from("Tahoma"),
+            dialog_font_size: 9,
+            dialog_font_standard_height: 0,
+            dialog_font_base_scale_width: 7,
+            dialog_font_base_scale_height: 15,
             title_font: PascalString::from("Arial"),
-            welcome_font: PascalString::from("Verdana"),
+            title_font_size: 29,
+            welcome_font: PascalString::from("Segoe UI"),
+            welcome_font_size: 14,
             copyright_font: PascalString::from("Arial"),
+            copyright_font_size: 8,
             data: PascalString::default(),
             license_text: PascalString::default(),
             info_before: PascalString::default(),
             info_after: PascalString::default(),
             id: 1033, // English (United States)
             codepage: WINDOWS_1252,
-            dialog_font_size: 8,
-            dialog_font_standard_height: 0,
-            title_font_size: 29,
-            welcome_font_size: 12,
-            copyright_font_size: 8,
             right_to_left: false,
         }
     }

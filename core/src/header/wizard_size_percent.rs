@@ -101,8 +101,8 @@ impl WizardSizePercent {
     #[must_use]
     pub const fn default_for(wizard_style: WizardStyle) -> Self {
         match wizard_style {
-            WizardStyle::Classic => Self::DEFAULT_CLASSIC,
             WizardStyle::Modern => Self::DEFAULT_MODERN,
+            _ => Self::DEFAULT_CLASSIC,
         }
     }
 }

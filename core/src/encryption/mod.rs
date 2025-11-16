@@ -59,7 +59,6 @@ impl EncryptionHeader {
             kdf_salt: reader.read_t::<KDFSalt>()?,
             kdf_iterations: reader.read_u32::<LE>()?,
             base_nonce: reader.read_t::<EncryptionNonce>()?,
-            ..Self::default()
         };
 
         if version >= 6.5 {

@@ -53,8 +53,12 @@ impl FileLocation {
             chunk.last_slice -= 1;
         }
 
-        chunk.offset = reader.read_u32::<LE>()?;
-        chunk.sort_offset = chunk.offset;
+        chunk.sub_offset = if version >= (6, 5, 2) {
+            reader.read_u64::<LE>()?
+        } else {
+            reader.read_u32::<LE>()?.into()
+        };
+        chunk.start_offset = chunk.sub_offset;
 
         let mut file = File::default();
 
@@ -64,10 +68,10 @@ impl FileLocation {
 
         if version >= 4 {
             file.size = reader.read_u64::<LE>()?;
-            chunk.size = reader.read_u64::<LE>()?;
+            chunk.original_size = reader.read_u64::<LE>()?;
         } else {
             file.size = reader.read_u32::<LE>()?.into();
-            chunk.size = reader.read_u32::<LE>()?.into();
+            chunk.original_size = reader.read_u32::<LE>()?.into();
         }
 
         let uncompressed_size = file.size;
@@ -120,7 +124,7 @@ impl FileLocation {
             options |= FileLocationFlags::CHUNK_COMPRESSED;
         }
 
-        let sign_mode = if version >= 6.3 && version < (6, 4, 3) {
+        let sign_mode = if ((6, 3, 0)..(6, 4, 3)).contains(&version) {
             SignMode::try_read_from_io(&mut reader)?
         } else {
             SignMode::from(options)

@@ -1,12 +1,10 @@
 /*!
 Inno is a read-only parser for [Inno Setup](https://jrsoftware.org/isinfo.php) installers (.exe).
-It reads the installer header and metadata, so you can inspect what an installer would do without
-actually running it.
+It reads the installer structures so you can inspect an installer without actually running it.
 
-The crate focuses on correctness across a wide range of Inno Setup versions and
-provides strongly-typed access to sections like Languages, Files, Tasks,
-Components, Registry entries, Run entries, and more. It does not execute any
-installer logic.
+The crate focuses on correctness across a wide range of Inno Setup versions and provides
+strongly-typed access to sections like Languages, Files, Tasks, Components, Registry entries, and
+more. It does not execute any installer logic.
 
 # Getting started
 
@@ -35,17 +33,19 @@ fn main() -> Result<(), inno::error::InnoError> {
 
     println!("Languages ({}):", inno.languages().len());
     for lang in inno.languages() {
-        println!("  - {}", lang.name());
-    }
-
-    println!("Files ({}):", inno.files().len());
-    for file in inno.files() {
-        println!("  - {:?} -> {:?}", file.destination(), file.source());
+        println!("- {}", lang.name());
     }
 
     Ok(())
 }
 ```
+
+## Optional Features
+
+The following are a list of [Cargo features][cargo-features] that can be enabled or disabled:
+
+- **chrono**: Enables converting a file's created at time to a [`DateTime<UTC>`].
+- **jiff**: Enables converting a file's created at time to a [`Timestamp`].
 
 # What this crate provides
 
@@ -55,7 +55,7 @@ fn main() -> Result<(), inno::error::InnoError> {
     settings, etc.).
   - Collections for languages, messages, permissions, types, components, tasks, directories, files,
     icons, INI entries, registry entries, and run entries.
-  - [`Inno::data_entries`]: low-level data/file location entries for consumers that want to
+  - [`Inno::file_locations`]: low-level data/file location entries for consumers that want to
     implement extraction.
 - Safe decoding of text according to the installer’s Unicode/ANSI mode and language codepage.
 - Version-aware parsing that accounts for structural changes between Inno Setup releases.
@@ -72,12 +72,12 @@ changes. In that case, you will get [InnoError::UnsupportedVersion`].
 # Features
 
 - LZMA/BZip2/Deflate detection through header metadata.
-- Optional static LZMA linking via the `static-lzma` feature for consumers that
+- Optional static LZMA linking via the `lzma-static` feature for consumers that
   need it:
 
   ```toml
   [dependencies]
-  inno = { version = "0.2", features = ["static-lzma"] }
+  inno = { version = "0.2", features = ["lzma-static"] }
   ```
 
 # Error handling
@@ -88,17 +88,6 @@ All fallible operations return [`InnoError`]. Typical errors include:
 - Unsupported (too-new) installer version.
 - I/O errors while reading.
 - Unexpected data at the end of a header stream (corruption or truncated file).
-
-# Module overview
-
-- [`entry`]: strongly-typed installer sections like [`entry::File`],
-  [`entry::Directory`], [`entry::RegistryEntry`], [`entry::RunEntry`], etc.
-- [`header`]: top-level installer configuration, compression, wizard style,
-  counts of entries, and helpers like [`header::Header::app_name`].
-- [`version`]: [`version::InnoVersion`] and utilities, including comparisons
-  and variant information.
-- [`error`]: [`InnoError`] and related types.
-- [`string`]: internal string handling helpers used during decoding.
 
 # Notes on text decoding
 
@@ -112,15 +101,14 @@ older installers.
 This crate is tested with Rust 1.88 or newer (in this workspace). Newer Rust
 versions are generally recommended.
 
-# License
-
-Dual-licensed under MIT or Apache-2.0 at your option. See LICENSE-MIT and
-LICENSE-APACHE in the repository.
-
 # Acknowledgements
 
 - innoextract: <https://github.com/dscharrer/innoextract>
 - Inno Setup: <https://jrsoftware.org/isinfo.php>
+
+[cargo-features]: https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section
+[`DateTime<Utc>`]: https://docs.rs/chrono/latest/chrono/struct.DateTime.html
+[`Timestamp`]: https://docs.rs/jiff/latest/jiff/struct.Timestamp.html
 */
 
 #![doc(html_root_url = "https://docs.rs/inno")]
@@ -156,7 +144,7 @@ use itertools::Itertools;
 use loader::SetupLoader;
 use read::{ReadBytesExt, stream::InnoStreamReader};
 use version::{InnoVersion, windows_version::WindowsVersionRange};
-use wizard::Wizard;
+pub use wizard::Wizard;
 pub use zerocopy;
 
 #[derive(Debug)]

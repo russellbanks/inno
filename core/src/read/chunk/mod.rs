@@ -8,9 +8,9 @@ use crate::header::Compression;
 pub struct Chunk {
     pub(crate) first_slice: u32,
     pub(crate) last_slice: u32,
-    pub(crate) sort_offset: u32,
-    pub(crate) offset: u32,
-    pub(crate) size: u64,
+    pub(crate) start_offset: u64,
+    pub(crate) sub_offset: u64,
+    pub(crate) original_size: u64,
     pub(crate) compression: Compression,
     pub(crate) encryption: Encryption,
 }

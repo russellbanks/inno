@@ -3,15 +3,15 @@ use std::{fmt, num::ParseIntError, str::FromStr};
 use thiserror::Error;
 use zerocopy::{FromBytes, Immutable, KnownLayout, LE, U32};
 
-use crate::header::WizardStyle;
+use super::WizardStyle;
 
-/// Represents the default size of Setup Wizard windows as percentages,
-/// stored in **little-endian** byte order.
+/// Represents the default size of Setup Wizard windows as percentages, stored in **little-endian**
+/// byte order.
 ///
 /// This corresponds to Inno Setup's [`WizardSizePercent`] setting.
 ///
 /// Also defined in the Inno Setup source code at:
-/// <https://github.com/jrsoftware/issrc/blob/is-6_5_1/Projects/Src/Shared.Struct.pas#L120>
+/// <https://github.com/jrsoftware/issrc/blob/is-6_6_0/Projects/Src/Shared.Struct.pas#L120>
 ///
 /// # Format
 /// - `"a,b"` → `a` is the horizontal size, `b` is the vertical size
@@ -61,6 +61,15 @@ impl WizardSizePercent {
     }
 
     /// Returns the horizontal scaling percentage.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inno::header::WizardSizePercent;
+    ///
+    /// let wizard_size_percent = WizardSizePercent::new(120, 100).unwrap();
+    /// assert_eq!(wizard_size_percent.horizontal(), 120);
+    /// ```
     #[must_use]
     #[inline]
     pub const fn horizontal(self) -> u32 {
@@ -68,6 +77,15 @@ impl WizardSizePercent {
     }
 
     /// Returns the vertical scaling percentage.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inno::header::WizardSizePercent;
+    ///
+    /// let wizard_size_percent = WizardSizePercent::new(100, 130).unwrap();
+    /// assert_eq!(wizard_size_percent.vertical(), 130);
+    /// ```
     #[must_use]
     #[inline]
     pub const fn vertical(self) -> u32 {
@@ -75,6 +93,15 @@ impl WizardSizePercent {
     }
 
     /// Returns both percentages as a tuple `(horizontal, vertical)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inno::header::WizardSizePercent;
+    ///
+    /// let wizard_size_percent = WizardSizePercent::default();
+    /// assert_eq!(wizard_size_percent.as_tuple(), (100, 100))
+    /// ```
     #[must_use]
     #[inline]
     pub const fn as_tuple(self) -> (u32, u32) {
@@ -90,7 +117,7 @@ impl WizardSizePercent {
     /// # Examples
     ///
     /// ```
-    /// # use inno::header::{WizardSizePercent, WizardStyle};
+    /// use inno::header::{WizardSizePercent, WizardStyle};
     ///
     /// let classic_size = WizardSizePercent::default_for(WizardStyle::Classic);
     /// assert_eq!(classic_size, WizardSizePercent::new(100, 100).unwrap());
@@ -130,10 +157,28 @@ impl fmt::Display for WizardSizePercent {
     }
 }
 
+impl TryFrom<u32> for WizardSizePercent {
+    type Error = WizardSizePercentError;
+
+    fn try_from(size_percent: u32) -> Result<Self, Self::Error> {
+        if size_percent < Self::MIN {
+            return Err(WizardSizePercentError::NegOverflow);
+        } else if size_percent > Self::MAX {
+            return Err(WizardSizePercentError::PosOverflow);
+        }
+
+        let size_percent = U32::new(size_percent);
+
+        Ok(Self {
+            horizontal: size_percent,
+            vertical: size_percent,
+        })
+    }
+}
+
 impl TryFrom<(u32, u32)> for WizardSizePercent {
     type Error = WizardSizePercentError;
 
-    #[inline]
     fn try_from((horizontal, vertical): (u32, u32)) -> Result<Self, Self::Error> {
         if horizontal < Self::MIN || vertical < Self::MIN {
             return Err(WizardSizePercentError::NegOverflow);
@@ -169,8 +214,10 @@ impl FromStr for WizardSizePercent {
     type Err = WizardSizePercentError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (x, y) = s.split_once(',').unwrap_or((s, s));
-
-        Self::try_from((x.parse()?, y.parse()?))
+        if let Some((a, b)) = s.split_once(',') {
+            Self::try_from((a.parse()?, b.parse()?))
+        } else {
+            Self::try_from(s.parse::<u32>()?)
+        }
     }
 }

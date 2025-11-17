@@ -1,38 +1,32 @@
 mod architecture;
 mod auto_bool;
-mod color;
 mod compression;
 mod entry_counts;
 pub mod flag_reader;
 mod flags;
-mod image_alpha_format;
-mod inno_style;
 mod install_verbosity;
 mod language_detection;
 mod log_mode;
 mod privilege_level;
 mod privileges_required_overrides;
-mod wizard_size_percent;
+mod wizard;
 mod yes_no;
 
 use std::{fmt, io};
 
 pub use architecture::{Architecture, StoredArchitecture};
 pub use auto_bool::AutoBool;
-pub use color::Color;
 pub use compression::Compression;
 use encoding_rs::{Encoding, WINDOWS_1252};
 pub use entry_counts::EntryCounts;
 use flag_reader::read_flags::read_flags;
 pub use flags::HeaderFlags;
-pub use image_alpha_format::ImageAlphaFormat;
-pub use inno_style::WizardStyle;
 pub use install_verbosity::InstallVerbosity;
 pub use language_detection::LanguageDetection;
 pub use log_mode::LogMode;
 pub use privilege_level::PrivilegeLevel;
 pub use privileges_required_overrides::PrivilegesRequiredOverrides;
-pub use wizard_size_percent::WizardSizePercent;
+pub use wizard::{Color, ImageAlphaFormat, WizardSettings, WizardSizePercent, WizardStyle};
 use yes_no::YesNoStr;
 use zerocopy::LE;
 
@@ -95,13 +89,7 @@ pub struct Header {
     entry_counts: EntryCounts,
     background_color: Color,
     background_color2: Color,
-    image_back_color: Color,
-    small_image_back_color: Color,
-    image_back_color_dynamic_dark: Color,
-    small_image_back_color_dynamic_dark: Color,
-    wizard_style: WizardStyle,
-    wizard_size_percent: WizardSizePercent,
-    wizard_image_alpha_format: ImageAlphaFormat,
+    wizard: WizardSettings,
     encryption_header: Option<EncryptionHeader>,
     extra_disk_space_required: u64,
     slices_per_disk: u32,
@@ -253,24 +241,7 @@ impl Header {
         if version >= (1, 3, 3) && version < (6, 4, 0, 1) {
             header.background_color2 = reader.read_t::<Color>()?;
         }
-        if version < (5, 5, 7) {
-            header.image_back_color = reader.read_t::<Color>()?;
-        }
-        if ((2, 0, 0)..(5, 0, 4)).contains(&version) || version.is_isx() {
-            header.small_image_back_color = reader.read_t::<Color>()?;
-        }
-        if (6.0..6.6).contains(&version) {
-            header.wizard_style = WizardStyle::try_read_from(&mut reader, version)?;
-        }
-        if version >= 6 {
-            header.wizard_size_percent = reader.read_t::<WizardSizePercent>()?;
-        }
-        if version >= 6.6 {
-            header.wizard_style = WizardStyle::try_read_from(&mut reader, version)?;
-        }
-        if version >= (5, 5, 7) {
-            header.wizard_image_alpha_format = ImageAlphaFormat::try_read_from_io(&mut reader)?;
-        }
+        header.wizard = WizardSettings::read_from(&mut reader, version)?;
         if (6.4..6.5).contains(&version) {
             header.encryption_header = Some(EncryptionHeader::read(&mut reader, version)?);
         } else if version < 6.4 {
@@ -290,12 +261,12 @@ impl Header {
             }
         }
         if version >= (6, 5, 2) {
-            header.image_back_color = reader.read_t::<Color>()?;
-            header.small_image_back_color = reader.read_t::<Color>()?;
+            header.wizard.image_back_color = reader.read_t::<Color>()?;
+            header.wizard.small_image_back_color = reader.read_t::<Color>()?;
         }
         if version >= 6.6 {
-            header.image_back_color_dynamic_dark = reader.read_t::<Color>()?;
-            header.small_image_back_color_dynamic_dark = reader.read_t::<Color>()?;
+            header.wizard.image_back_color_dynamic_dark = reader.read_t::<Color>()?;
+            header.wizard.small_image_back_color_dynamic_dark = reader.read_t::<Color>()?;
         }
         if version >= 4 {
             header.extra_disk_space_required = reader.read_u64::<LE>()?;
@@ -1046,28 +1017,28 @@ impl Header {
     #[must_use]
     #[inline]
     pub const fn image_background_color(&self) -> Color {
-        self.image_back_color
+        self.wizard.image_back_color()
     }
 
     /// Returns the small image background color.
     #[must_use]
     #[inline]
     pub const fn small_image_background_color(&self) -> Color {
-        self.small_image_back_color
+        self.wizard.small_image_back_color()
     }
 
     /// Returns the image background color used in dark mode when a dynamic theme is enabled.
     #[must_use]
     #[inline]
     pub const fn image_dynamic_background_color(&self) -> Color {
-        self.image_back_color_dynamic_dark
+        self.wizard.image_back_color_dynamic_dark()
     }
 
     /// Returns the small image background color used in dark mode when a dynamic theme is enabled.
     #[must_use]
     #[inline]
     pub const fn small_image_dynamic_background_color(&self) -> Color {
-        self.small_image_back_color_dynamic_dark
+        self.wizard.small_image_back_color_dynamic_dark()
     }
 
     /// Returns the wizard style.
@@ -1075,7 +1046,7 @@ impl Header {
     #[must_use]
     #[inline]
     pub const fn wizard_style(&self) -> WizardStyle {
-        self.wizard_style
+        self.wizard.style()
     }
 
     /// Returns the wizard size percent (horizontal, vertical).
@@ -1083,7 +1054,7 @@ impl Header {
     #[must_use]
     #[inline]
     pub const fn wizard_size_percent(&self) -> WizardSizePercent {
-        self.wizard_size_percent
+        self.wizard.size_percent()
     }
 
     /// Returns the image alpha format.
@@ -1091,7 +1062,7 @@ impl Header {
     #[must_use]
     #[inline]
     pub const fn wizard_image_alpha_format(&self) -> ImageAlphaFormat {
-        self.wizard_image_alpha_format
+        self.wizard.image_alpha_format()
     }
 
     /// Returns the encryption header.

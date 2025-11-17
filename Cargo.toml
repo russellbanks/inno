@@ -14,7 +14,7 @@ name = "innex"
 members = ["core"]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.88"
 repository = "https://github.com/russellbanks/inno"
@@ -27,7 +27,7 @@ bitflags = "2.10.0"
 camino = "1.1.12"
 clap = { version = "4.5.47", features = ["derive"] }
 crossterm = "0.29.0"
-inno = { version = "0.2.0", path = "core", features = ["chrono"] }
+inno = { version = "0.3.0", path = "core", features = ["chrono"] }
 itertools = { version = "0.14.0", default-features = false }
 num-traits = "0.2.19"
 ratatui = { version = "0.29.0", default-features = false, features = ["crossterm"] }

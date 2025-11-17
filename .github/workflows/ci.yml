@@ -47,11 +47,8 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
-
       - name: Publish dry run
-        run: cargo hack publish --workspace --no-dev-deps --dry-run --allow-dirty
+        run: cargo publish --package inno --dry-run
 
   msrv:
     name: MSRV

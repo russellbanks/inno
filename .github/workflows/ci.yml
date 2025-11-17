@@ -95,3 +95,14 @@ jobs:
 
       - name: Check minimal versions
         run: cargo minimal-versions check --workspace
+
+  unused_dependencies:
+    name: Unused dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Check for unused dependencies
+        uses: bnjbvr/cargo-machete@main

@@ -196,6 +196,11 @@ fn rows(header: &'_ Header) -> Vec<Row<'_>> {
     ]));
 
     rows.push(Row::new([
+        Cow::Borrowed("Wizard image opacity"),
+        Cow::Owned(header.wizard_image_opacity().to_string()),
+    ]));
+
+    rows.push(Row::new([
         Cow::Borrowed("Wizard small image dark background color"),
         Cow::Owned(header.small_image_dynamic_background_color().to_string()),
     ]));

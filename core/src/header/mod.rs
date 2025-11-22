@@ -268,6 +268,9 @@ impl Header {
             header.wizard.image_back_color_dynamic_dark = reader.read_t::<Color>()?;
             header.wizard.small_image_back_color_dynamic_dark = reader.read_t::<Color>()?;
         }
+        if version >= (6, 6, 1) {
+            header.wizard.image_opacity = reader.read_u8()?;
+        }
         if version >= 4 {
             header.extra_disk_space_required = reader.read_u64::<LE>()?;
             header.slices_per_disk = reader.read_u32::<LE>()?;
@@ -1039,6 +1042,13 @@ impl Header {
     #[inline]
     pub const fn small_image_dynamic_background_color(&self) -> Color {
         self.wizard.small_image_back_color_dynamic_dark()
+    }
+
+    /// Returns the wizard image opacity.
+    #[must_use]
+    #[inline]
+    pub const fn wizard_image_opacity(&self) -> u8 {
+        self.wizard.image_opacity()
     }
 
     /// Returns the wizard style.

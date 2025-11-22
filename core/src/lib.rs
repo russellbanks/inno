@@ -12,7 +12,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-inno = "0.2"
+inno = "0.3"
 ```
 
 Then, open an installer and inspect its contents:

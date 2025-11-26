@@ -107,7 +107,7 @@ impl PascalString {
 
 impl Default for PascalString {
     fn default() -> Self {
-        Self::Bytes(Vec::new())
+        Self::Utf8(String::default())
     }
 }
 
@@ -142,6 +142,6 @@ impl fmt::Display for PascalString {
 
 impl From<&str> for PascalString {
     fn from(s: &str) -> Self {
-        Self::Utf8(s.to_string())
+        Self::Utf8(s.to_owned())
     }
 }

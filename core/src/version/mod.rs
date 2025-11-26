@@ -21,6 +21,19 @@ impl InnoVersion {
     const RAW_LEN: usize = 1 << 6;
 
     /// Creates a new `InnoVersion` with the specified major, minor, patch, and revision.
+    ///
+    /// Inno Setup versions 6.3.0 and newer are always Unicode.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inno::version::{InnoVersion, VersionVariant};
+    ///
+    /// assert_eq!(InnoVersion::new(6, 2, 2, 0).variant(), VersionVariant::empty());
+    ///
+    /// // Inno Setup versions 6.3.0 and newer are always Unicode.
+    /// assert_eq!(InnoVersion::new(6, 3, 0, 0).variant(), VersionVariant::UNICODE);
+    /// ```
     #[must_use]
     #[inline]
     pub const fn new(major: u8, minor: u8, patch: u8, revision: u8) -> Self {
@@ -29,12 +42,31 @@ impl InnoVersion {
             minor,
             patch,
             revision,
-            variant: VersionVariant::empty(),
+            variant: if major >= 6 && minor >= 3 {
+                VersionVariant::UNICODE
+            } else {
+                VersionVariant::empty()
+            },
         }
     }
 
     /// Creates a new `InnoVersion` with the specified major, minor, patch, revision, and variant
     /// flags.
+    ///
+    /// Inno Setup versions 6.3.0 and newer are always Unicode.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inno::version::{InnoVersion, VersionVariant};
+    ///
+    /// let version = InnoVersion::new_with_variant(1, 3, 21, 0, VersionVariant::ISX);
+    /// assert_eq!(version.variant(), VersionVariant::ISX);
+    ///
+    /// // Inno Setup 6.3.0 and newer is always Unicode
+    /// let version = InnoVersion::new_with_variant(6, 3, 0, 0, VersionVariant::ISX);
+    /// assert_eq!(version.variant(), VersionVariant::ISX | VersionVariant::UNICODE);
+    /// ```
     #[must_use]
     #[inline]
     pub const fn new_with_variant(
@@ -49,7 +81,11 @@ impl InnoVersion {
             minor,
             patch,
             revision,
-            variant,
+            variant: if major >= 6 && minor >= 3 {
+                variant.union(VersionVariant::UNICODE)
+            } else {
+                variant
+            },
         }
     }
 
@@ -103,10 +139,7 @@ impl InnoVersion {
 
         // Inno Setup 6.3.0 and above is always only Unicode
         if inno_version >= 6.3 {
-            return Some(Self {
-                variant: VersionVariant::UNICODE,
-                ..inno_version
-            });
+            return Some(inno_version);
         }
 
         let mut flags = VersionVariant::empty();
@@ -230,7 +263,7 @@ impl fmt::Display for InnoVersion {
             write!(f, " with ISX")?;
         }
 
-        if self.is_unicode() {
+        if self.is_unicode() && *self < (6, 3, 0) {
             write!(f, " (u)")?;
         }
 

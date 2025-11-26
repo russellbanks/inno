@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use inno::Header;
+use inno::{Header, version::InnoVersion};
 use ratatui::{
     buffer::Buffer,
     layout::{
@@ -20,6 +20,7 @@ use super::emoji::Emoji;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Summary<'a> {
     header: &'a Header,
+    version: InnoVersion,
     state: TableState,
     scroll_state: ScrollbarState,
     rows: Vec<Row<'a>>,
@@ -27,10 +28,11 @@ pub struct Summary<'a> {
 
 impl<'a> Summary<'a> {
     #[must_use]
-    pub fn new(header: &'a Header) -> Self {
-        let rows = rows(header);
+    pub fn new(header: &'a Header, version: InnoVersion) -> Self {
+        let rows = rows(header, version);
         Self {
             header,
+            version,
             state: TableState::new().with_selected(0),
             scroll_state: ScrollbarState::new(rows.len()),
             rows,
@@ -61,8 +63,11 @@ impl<'a> Summary<'a> {
     }
 }
 
-fn rows(header: &'_ Header) -> Vec<Row<'_>> {
-    let mut rows = Vec::new();
+fn rows(header: &'_ Header, version: InnoVersion) -> Vec<Row<'_>> {
+    let mut rows = Vec::from([Row::new([
+        Cow::Borrowed("Inno Setup version"),
+        Cow::Owned(version.to_string()),
+    ])]);
     if let Some(name) = header.app_name() {
         rows.push(Row::new(["App name", name]));
     }

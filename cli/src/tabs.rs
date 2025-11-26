@@ -18,7 +18,7 @@ impl<'a> TabManager<'a> {
     /// Creates a new View Tab manager.
     #[must_use]
     pub fn new(inno: &'a Inno) -> Self {
-        let mut pages = vec![Page::Header(Summary::new(&inno.header))];
+        let mut pages = vec![Page::Header(Summary::new(&inno.header, inno.version()))];
 
         let languages = inno.languages();
         if !languages.is_empty() {

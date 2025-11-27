@@ -93,8 +93,8 @@ impl WizardSettings {
     }
 
     /// Returns the image opacity.
-    #[inline]
     #[must_use]
+    #[inline]
     pub const fn image_opacity(&self) -> u8 {
         self.image_opacity
     }

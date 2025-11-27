@@ -68,12 +68,13 @@ impl MessageEntry {
 
         message.language_index = reader.read_i32::<LE>()?;
 
-        let mut codepage = codepage;
-        if let Ok(index) = usize::try_from(message.language_index)
+        let codepage = if let Ok(index) = usize::try_from(message.language_index)
             && let Some(language) = languages.get(index)
         {
-            codepage = language.codepage();
-        }
+            language.codepage()
+        } else {
+            codepage
+        };
 
         if let Some(value) = &mut message.value {
             value.decode(codepage);

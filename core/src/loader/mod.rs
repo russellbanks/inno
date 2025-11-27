@@ -22,7 +22,7 @@ use super::{
     version::InnoVersion,
 };
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct SetupLoader {
     /// Signature of the setup loader.
     #[doc(alias = "ID")]

@@ -18,6 +18,7 @@ pub struct OptionalHeader {
 }
 
 impl OptionalHeader {
+    #[expect(clippy::cast_possible_wrap)]
     pub fn read_from<R>(mut src: R) -> io::Result<Self>
     where
         R: io::Read + io::Seek,

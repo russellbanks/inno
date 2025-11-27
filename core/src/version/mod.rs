@@ -321,6 +321,7 @@ impl PartialEq<u8> for InnoVersion {
 }
 
 impl PartialEq<f32> for InnoVersion {
+    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn eq(&self, &version: &f32) -> bool {
         *self == Self::new(version as u8, ((version * 10.0) as u8) % 10, 0, 0)
     }
@@ -351,6 +352,7 @@ impl PartialEq<InnoVersion> for u8 {
 }
 
 impl PartialEq<InnoVersion> for f32 {
+    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn eq(&self, version: &InnoVersion) -> bool {
         (*self as u8, ((self * 10.0) as u8) % 10, 0, 0) == version.as_tuple()
     }
@@ -381,6 +383,7 @@ impl PartialOrd<u8> for InnoVersion {
 }
 
 impl PartialOrd<f32> for InnoVersion {
+    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn partial_cmp(&self, &version: &f32) -> Option<Ordering> {
         self.partial_cmp(&Self::new(
             version as u8,
@@ -416,6 +419,7 @@ impl PartialOrd<InnoVersion> for u8 {
 }
 
 impl PartialOrd<InnoVersion> for f32 {
+    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn partial_cmp(&self, version: &InnoVersion) -> Option<Ordering> {
         (*self as u8, ((self * 10.0) as u8) % 10, 0, 0).partial_cmp(&version.as_tuple())
     }

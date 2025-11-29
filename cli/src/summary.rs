@@ -200,10 +200,12 @@ fn rows(header: &'_ Header, version: InnoVersion) -> Vec<Row<'_>> {
         Cow::Owned(header.image_dynamic_background_color().to_string()),
     ]));
 
-    rows.push(Row::new([
-        Cow::Borrowed("Wizard image opacity"),
-        Cow::Owned(header.wizard_image_opacity().to_string()),
-    ]));
+    if let Some(opacity) = header.wizard_image_opacity() {
+        rows.push(Row::new([
+            Cow::Borrowed("Wizard image opacity"),
+            Cow::Owned(opacity.to_string()),
+        ]));
+    }
 
     rows.push(Row::new([
         Cow::Borrowed("Wizard small image dark background color"),

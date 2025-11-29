@@ -269,7 +269,7 @@ impl Header {
             header.wizard.small_image_back_color_dynamic_dark = reader.read_t::<Color>()?;
         }
         if version >= (6, 6, 1) {
-            header.wizard.image_opacity = reader.read_u8()?;
+            header.wizard.image_opacity = Some(reader.read_u8()?);
         }
         if version >= 4 {
             header.extra_disk_space_required = reader.read_u64::<LE>()?;
@@ -1047,7 +1047,7 @@ impl Header {
     /// Returns the wizard image opacity.
     #[must_use]
     #[inline]
-    pub const fn wizard_image_opacity(&self) -> u8 {
+    pub const fn wizard_image_opacity(&self) -> Option<u8> {
         self.wizard.image_opacity()
     }
 

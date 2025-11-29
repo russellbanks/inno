@@ -19,7 +19,7 @@ pub struct WizardSettings {
     pub(crate) small_image_back_color: Color,
     pub(crate) image_back_color_dynamic_dark: Color,
     pub(crate) small_image_back_color_dynamic_dark: Color,
-    pub(crate) image_opacity: u8,
+    pub(crate) image_opacity: Option<u8>,
     size_percent: WizardSizePercent,
     style: WizardStyle,
 }
@@ -95,7 +95,7 @@ impl WizardSettings {
     /// Returns the image opacity.
     #[must_use]
     #[inline]
-    pub const fn image_opacity(&self) -> u8 {
+    pub const fn image_opacity(&self) -> Option<u8> {
         self.image_opacity
     }
 

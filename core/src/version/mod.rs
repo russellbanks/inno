@@ -235,7 +235,7 @@ impl InnoVersion {
     /// ```
     /// use inno::version::{InnoVersion, VersionVariant};
     ///
-    /// assert_eq!(InnoVersion::new_with_variant(6, 2, 2, 0).variant(), VersionVariant::empty());
+    /// assert_eq!(InnoVersion::new(6, 2, 2, 0).variant(), VersionVariant::empty());
     ///
     /// // Inno Setup versions 6.3.0 and newer are always Unicode.
     /// assert_eq!(InnoVersion::new(6, 3, 0, 0).variant(), VersionVariant::UNICODE);
@@ -403,7 +403,7 @@ impl fmt::Display for InnoVersion {
         if self.patch != u8::MAX {
             write!(f, ".{}", self.patch)?;
 
-            if self.revision != u8::MAX {
+            if self.revision != u8::MIN && self.revision != u8::MAX {
                 write!(f, ".{}", self.revision)?;
             }
         }
@@ -585,6 +585,11 @@ mod tests {
     use rstest::rstest;
 
     use super::{InnoVersion, VersionVariant};
+
+    #[test]
+    fn size() {
+        assert_eq!(size_of::<InnoVersion>(), 5);
+    }
 
     #[rstest]
     #[case(b"", InnoVersion::new(0, 0, 0, 0))]

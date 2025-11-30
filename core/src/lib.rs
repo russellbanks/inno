@@ -189,12 +189,41 @@ impl Inno {
         // Seek to Inno header
         reader.seek(SeekFrom::Start(setup_loader.header_offset().unsigned_abs()))?;
 
-        let inno_version = InnoVersion::read(&mut reader)?;
+        let mut inno_version = InnoVersion::read(&mut reader)?;
 
         if inno_version > Self::MAX_SUPPORTED_VERSION {
             return Err(InnoError::UnsupportedVersion(inno_version));
         }
 
+        // Inno Setup sometimes didn't increment the version number between versions with breaking
+        // changes. If the version is ambiguous, try reading using successive candidate versions
+        // until one succeeds.
+        if let Some(mut versions_to_try) = inno_version.ambiguous_candidates().map(Vec::into_iter) {
+            let position = reader.stream_position()?;
+
+            loop {
+                match Self::read_stream(&mut reader, setup_loader, inno_version) {
+                    Ok(inno) => break Ok(inno),
+                    Err(err) => {
+                        if let Some(next) = versions_to_try.next() {
+                            inno_version = next;
+                            reader.seek(SeekFrom::Start(position))?;
+                        } else {
+                            break Err(err);
+                        }
+                    }
+                }
+            }
+        } else {
+            Self::read_stream(&mut reader, setup_loader, inno_version)
+        }
+    }
+
+    fn read_stream<R: Read + Seek>(
+        mut reader: R,
+        setup_loader: SetupLoader,
+        inno_version: InnoVersion,
+    ) -> Result<Self, InnoError> {
         let encryption_header = if inno_version >= 6.5 {
             Some(EncryptionHeader::read(&mut reader, inno_version)?)
         } else {

@@ -294,6 +294,25 @@ impl InnoVersion {
         self.variant.is_16_bit()
     }
 
+    /// Returns `true` if the version is one that was not incremented since a previous Inno Setup
+    /// version and therefore may not actually be the true version.
+    #[must_use]
+    pub fn is_ambiguous(&self) -> bool {
+        const AMBIGUOUS_VERSIONS: [InnoVersion; 9] = [
+            InnoVersion::new(1, 3, 21, 0), // 1.3.21 or 1.3.24
+            InnoVersion::new(2, 0, 1, 0),  // 2.0.1 or 2.0.2
+            InnoVersion::new(3, 0, 3, 0),  // 3.0.3 or 3.0.4
+            InnoVersion::new(4, 2, 3, 0),  // 4.2.3 or 4.2.4
+            InnoVersion::new(5, 3, 10, 0), // 5.3.10 or 5.3.10.1
+            InnoVersion::new(5, 4, 2, 0),  // 5.4.2 or 5.4.2.1
+            InnoVersion::new(5, 5, 0, 0),  // 5.5.0 or 5.5.0.1
+            InnoVersion::new(5, 5, 7, 0),  // 5.5.7 or 5.6.0
+            InnoVersion::new(5, 5, 7, 1),  // 5.5.7 or unknown modification
+        ];
+
+        AMBIGUOUS_VERSIONS.contains(self)
+    }
+
     /// Returns `true` if the version is a `BlackBox` V2 version.
     #[must_use]
     pub fn is_blackbox(&self) -> bool {
@@ -304,6 +323,76 @@ impl InnoVersion {
         ];
 
         self.is_unicode() && BLACKBOX_VERSIONS.contains(self)
+    }
+
+    pub(crate) fn ambiguous_candidates(self) -> Option<Vec<Self>> {
+        match self {
+            Self {
+                major: 1,
+                minor: 3,
+                patch: 21,
+                revision: 0,
+                ..
+            } => Some(vec![
+                Self::new(1, 3, 22, 0),
+                Self::new(1, 3, 23, 0),
+                Self::new(1, 3, 24, 0),
+            ]),
+            Self {
+                major: 2,
+                minor: 0,
+                patch: 1,
+                revision: 0,
+                ..
+            } => Some(vec![Self::new(2, 0, 2, 0)]),
+            Self {
+                major: 3,
+                minor: 0,
+                patch: 3,
+                revision: 0,
+                ..
+            } => Some(vec![Self::new(3, 0, 4, 0)]),
+            Self {
+                major: 4,
+                minor: 2,
+                patch: 3,
+                revision: 0,
+                ..
+            } => Some(vec![Self::new(4, 2, 4, 0)]),
+            Self {
+                major: 5,
+                minor: 3,
+                patch: 10,
+                revision: 0,
+                ..
+            } => Some(vec![Self::new(5, 3, 10, 1)]),
+            Self {
+                major: 5,
+                minor: 4,
+                patch: 2,
+                revision: 0,
+                ..
+            } => Some(vec![Self::new(5, 4, 2, 1)]),
+            Self {
+                major: 5,
+                minor: 5,
+                patch: 0,
+                revision: 0,
+                ..
+            } => Some(vec![Self::new(5, 5, 0, 1)]),
+            Self {
+                major: 5,
+                minor: 5,
+                patch: 7,
+                revision: 0 | 1,
+                ..
+            } => Some(vec![
+                Self::new(5, 5, 8, 0),
+                Self::new(5, 5, 9, 0),
+                Self::new(5, 6, 0, 0),
+            ]),
+            _ => None,
+        }
     }
 }
 

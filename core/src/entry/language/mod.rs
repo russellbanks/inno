@@ -1,22 +1,24 @@
+mod dialog_font;
+
 use std::{fmt, io};
 
+pub use dialog_font::DialogFont;
 use encoding_rs::{Encoding, UTF_16LE, WINDOWS_1252};
 use zerocopy::LE;
 
 use crate::{read::ReadBytesExt, string::PascalString, version::InnoVersion};
 
-/// <https://github.com/jrsoftware/issrc/blob/is-6_6_0/Projects/Src/Shared.Struct.pas#L151>
+/// <https://github.com/jrsoftware/issrc/blob/is-6_6_1/Projects/Src/Shared.Struct.pas#L152>
 ///
-/// <https://github.com/jrsoftware/issrc/blob/is-6_6_0/Projects/Src/Shared.LangOptionsSectionDirectives.pas>
+/// <https://github.com/jrsoftware/issrc/blob/is-6_6_1/Projects/Src/Shared.LangOptionsSectionDirectives.pas>
 #[derive(Clone, Eq, PartialEq)]
 pub struct Language {
+    /// The internal name of the language in English.
     name: PascalString,
+    /// The name of the language in the language itself.
     language_name: PascalString,
-    dialog_font_base_scale_height: u32,
-    dialog_font_base_scale_width: u32,
-    dialog_font: PascalString,
-    dialog_font_size: u32,
-    dialog_font_standard_height: u32,
+    /// The dialog font.
+    dialog_font: DialogFont,
     title_font: PascalString,     // Obsolete
     title_font_size: u32,         // Obsolete
     copyright_font: PascalString, // Obsolete
@@ -54,7 +56,7 @@ impl Language {
         }
 
         if let Some(dialog_font) = reader.read_pascal_string()? {
-            language.dialog_font = dialog_font;
+            language.dialog_font.name = dialog_font;
         }
 
         if version < 6.6
@@ -126,15 +128,15 @@ impl Language {
         language.welcome_font.decode(language.codepage);
         language.copyright_font.decode(language.codepage);
 
-        language.dialog_font_size = reader.read_u32::<LE>()?;
+        language.dialog_font.size = reader.read_u32::<LE>()?;
 
         if version < 4.1 {
-            language.dialog_font_standard_height = reader.read_u32::<LE>()?;
+            language.dialog_font.standard_height = reader.read_u32::<LE>()?;
         }
 
         if version >= 6.6 {
-            language.dialog_font_base_scale_height = reader.read_u32::<LE>()?;
-            language.dialog_font_base_scale_width = reader.read_u32::<LE>()?;
+            language.dialog_font.base_scale_height = reader.read_u32::<LE>()?;
+            language.dialog_font.base_scale_width = reader.read_u32::<LE>()?;
         } else {
             language.title_font_size = reader.read_u32::<LE>()?;
         }
@@ -156,25 +158,25 @@ impl Language {
         Ok(language)
     }
 
-    /// Returns the name of the language.
+    /// Returns the internal name of the language in English.
     #[must_use]
     #[inline]
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
 
-    /// Returns the name of the language in that language.
+    /// Returns the name of the language in the language itself.
     #[must_use]
     #[inline]
     pub fn language_name(&self) -> &str {
         self.language_name.as_str()
     }
 
-    /// Returns the dialog font name.
+    /// Returns the dialog font.
     #[must_use]
     #[inline]
-    pub fn dialog_font(&self) -> &str {
-        self.dialog_font.as_str()
+    pub fn dialog_font(&self) -> &DialogFont {
+        &self.dialog_font
     }
 
     /// Returns the title font name.
@@ -240,20 +242,6 @@ impl Language {
         self.codepage
     }
 
-    /// Returns the dialog font size.
-    #[must_use]
-    #[inline]
-    pub const fn dialog_font_size(&self) -> u32 {
-        self.dialog_font_size
-    }
-
-    /// Returns the dialog font standard height.
-    #[must_use]
-    #[inline]
-    pub const fn dialog_font_standard_height(&self) -> u32 {
-        self.dialog_font_standard_height
-    }
-
     /// Returns the title font size.
     #[must_use]
     #[inline]
@@ -289,7 +277,7 @@ impl fmt::Debug for Language {
         f.debug_struct("Language")
             .field("Name", &self.name())
             .field("LanguageName", &self.language_name())
-            .field("DialogFontName", &self.dialog_font())
+            .field("DialogFontName", &self.dialog_font().name())
             .field("TitleFontName", &self.title_font())
             .field("WelcomeFontName", &self.welcome_font())
             .field("CopyrightFontName", &self.copyright_font())
@@ -299,10 +287,10 @@ impl fmt::Debug for Language {
             .field("InfoAfter", &self.info_after())
             .field("LanguageID", &self.id())
             .field("Codepage", &self.codepage())
-            .field("DialogFontSize", &self.dialog_font_size())
+            .field("DialogFontSize", &self.dialog_font().size())
             .field(
                 "DialogFontStandardHeight",
-                &self.dialog_font_standard_height(),
+                &self.dialog_font().standard_height(),
             )
             .field("TitleFontSize", &self.title_font_size())
             .field("WelcomeFontSize", &self.welcome_font_size())
@@ -313,16 +301,12 @@ impl fmt::Debug for Language {
 }
 
 impl Default for Language {
-    /// <https://github.com/jrsoftware/issrc/blob/is-6_4_3/Projects/Src/Compiler.SetupCompiler.pas#L5895>
+    /// <https://github.com/jrsoftware/issrc/blob/is-6_6_1/Projects/Src/Compiler.SetupCompiler.pas#L6323>
     fn default() -> Self {
         Self {
             name: PascalString::from("default"),
             language_name: PascalString::from("English"),
-            dialog_font: PascalString::from("Tahoma"),
-            dialog_font_size: 9,
-            dialog_font_standard_height: 0,
-            dialog_font_base_scale_width: 7,
-            dialog_font_base_scale_height: 15,
+            dialog_font: DialogFont::default(),
             title_font: PascalString::from("Arial"),
             title_font_size: 29,
             welcome_font: PascalString::from("Segoe UI"),

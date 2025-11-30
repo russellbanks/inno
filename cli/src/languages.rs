@@ -110,8 +110,8 @@ impl Widget for &mut Languages<'_> {
                 Cow::Borrowed(lang.codepage().name()),
                 Cow::Owned(format!(
                     "{} ({})",
-                    lang.dialog_font(),
-                    lang.dialog_font_size()
+                    lang.dialog_font().name(),
+                    lang.dialog_font().size()
                 )),
                 Cow::Owned(format!(
                     "{} ({})",
@@ -161,9 +161,10 @@ fn constraints(languages: &[Language]) -> [Constraint; 8] {
         Max(languages
             .iter()
             .map(|language| {
-                language.dialog_font().len()
+                language.dialog_font().name().len()
                     + language
-                        .dialog_font_size()
+                        .dialog_font()
+                        .size()
                         .checked_ilog10()
                         .map(|log10| log10 + 1)
                         .unwrap_or_default() as usize

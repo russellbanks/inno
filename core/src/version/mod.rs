@@ -168,6 +168,14 @@ impl InnoVersion {
     }
 
     /// Returns the major version number.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inno::version::InnoVersion;
+    ///
+    /// assert_eq!(InnoVersion::new(6, 4, 0, 1).major(), 6);
+    /// ```
     #[must_use]
     #[inline]
     pub const fn major(self) -> u8 {
@@ -175,6 +183,14 @@ impl InnoVersion {
     }
 
     /// Returns the minor version number.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inno::version::InnoVersion;
+    ///
+    /// assert_eq!(InnoVersion::new(6, 4, 0, 1).minor(), 4);
+    /// ```
     #[must_use]
     #[inline]
     pub const fn minor(self) -> u8 {
@@ -182,6 +198,14 @@ impl InnoVersion {
     }
 
     /// Returns the patch version number.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inno::version::InnoVersion;
+    ///
+    /// assert_eq!(InnoVersion::new(6, 4, 0, 1).patch(), 0);
+    /// ```
     #[must_use]
     #[inline]
     pub const fn patch(self) -> u8 {
@@ -189,6 +213,14 @@ impl InnoVersion {
     }
 
     /// Returns the revision version number.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inno::version::InnoVersion;
+    ///
+    /// assert_eq!(InnoVersion::new(6, 4, 0, 1).revision(), 1);
+    /// ```
     #[must_use]
     #[inline]
     pub const fn revision(self) -> u8 {
@@ -196,6 +228,18 @@ impl InnoVersion {
     }
 
     /// Returns the variant flags of the version.
+    ///
+    /// # Examples
+    ///
+    ///
+    /// ```
+    /// use inno::version::{InnoVersion, VersionVariant};
+    ///
+    /// assert_eq!(InnoVersion::new_with_variant(6, 2, 2, 0).variant(), VersionVariant::empty());
+    ///
+    /// // Inno Setup versions 6.3.0 and newer are always Unicode.
+    /// assert_eq!(InnoVersion::new(6, 3, 0, 0).variant(), VersionVariant::UNICODE);
+    /// ```
     #[must_use]
     #[inline]
     pub const fn variant(&self) -> VersionVariant {
@@ -203,6 +247,14 @@ impl InnoVersion {
     }
 
     /// Returns the version as a tuple of (major, minor, patch, revision).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inno::version::InnoVersion;
+    ///
+    /// assert_eq!(InnoVersion::new(6, 4, 0, 1), (6, 4, 0, 1));
+    /// ```
     #[must_use]
     #[inline]
     pub const fn as_tuple(&self) -> (u8, u8, u8, u8) {
@@ -210,6 +262,18 @@ impl InnoVersion {
     }
 
     /// Returns `true` if the version has a Unicode flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inno::version::{InnoVersion, VersionVariant};
+    ///
+    /// assert!(!InnoVersion::new(6, 2, 0, 0).is_unicode());
+    ///
+    /// assert!(InnoVersion::new_with_variant(6, 2, 0, 0, VersionVariant::UNICODE).is_unicode());
+    ///
+    /// assert!(InnoVersion::new(6, 3, 0, 0).is_unicode());
+    /// ```
     #[must_use]
     #[inline]
     pub const fn is_unicode(&self) -> bool {

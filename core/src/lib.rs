@@ -516,3 +516,16 @@ impl Inno {
         self.file_locations.as_slice()
     }
 }
+
+#[macro_export]
+macro_rules! string_getter {
+    ($($field:tt),+ $(,)?) => {
+        $(
+            #[must_use]
+            #[inline]
+            pub fn $field(&self) -> Option<&str> {
+                self.$field.as_deref()
+            }
+        )+
+    };
+}

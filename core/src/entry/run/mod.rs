@@ -12,6 +12,7 @@ use crate::{
     entry::Condition,
     header::flag_reader::read_flags::read_flags,
     read::ReadBytesExt,
+    string_getter,
     version::{InnoVersion, windows_version::WindowsVersionRange},
 };
 
@@ -92,5 +93,35 @@ impl RunEntry {
         )?;
 
         Ok(run_entry)
+    }
+}
+
+impl RunEntry {
+    string_getter!(
+        name,
+        parameters,
+        working_directory,
+        run_once_id,
+        status_message,
+        verb,
+        description,
+    );
+
+    #[must_use]
+    #[inline]
+    pub fn show_command(&self) -> i32 {
+        self.show_command
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn wait_condition(&self) -> WaitCondition {
+        self.wait_condition
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn options(&self) -> RunFlags {
+        self.options
     }
 }

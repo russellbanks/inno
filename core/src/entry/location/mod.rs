@@ -12,7 +12,7 @@ pub use file::File;
 pub use flags::FileLocationFlags;
 #[cfg(feature = "jiff")]
 use jiff::Timestamp;
-use nt_time::FileTime;
+use nt_time::{FileTime, dos_date_time};
 pub use sign::SignMode;
 use zerocopy::LE;
 
@@ -88,11 +88,14 @@ impl FileLocation {
             Checksum::read_adler32(&mut reader)?
         };
 
-        let time = if version.is_16_bit() {
+        let file_time = if version.is_16_bit() {
             // 16-bit installers use the FAT filetime format
-            let time = reader.read_u16::<LE>()?;
-            let date = reader.read_u16::<LE>()?;
-            FileTime::from_dos_date_time(date, time).unwrap_or(FileTime::UNIX_EPOCH)
+            use dos_date_time::{Date, DateTime, Time};
+
+            let time = Time::new(reader.read_u16::<LE>()?).unwrap_or_default();
+            let date = Date::new(reader.read_u16::<LE>()?).unwrap_or_default();
+
+            DateTime::new(date, time).into()
         } else {
             // 32-bit installers use the Win32 FILETIME format
             FileTime::new(reader.read_u64::<LE>()?)
@@ -170,7 +173,7 @@ impl FileLocation {
             chunk,
             file,
             uncompressed_size,
-            file_time: time,
+            file_time,
             file_version,
             options,
             sign_mode,

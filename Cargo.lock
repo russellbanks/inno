@@ -395,6 +395,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dos-date-time"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ae8ddcf346819bfc62c8e190be33b46c0756a819fef43f346193d572d7eeb6c"
+dependencies = [
+ "time",
+]
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1150,6 +1159,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d17ea364f8a89c737ffe3a2a11b3aa26d9ccba53b7ec61c791fd2d2e53f835de"
 dependencies = [
  "chrono",
+ "dos-date-time",
  "jiff",
  "time",
 ]

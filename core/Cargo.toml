@@ -19,7 +19,7 @@ flate2 = { version = "1.0.13", default-features = false, features = ["zlib"] }
 itertools = { version = "0.14", default-features = false }
 jiff = { version = "0.2", default-features = false, optional = true }
 liblzma = { version = "0.4", default-features = false, features = ["bindgen"] }
-nt-time = { version = "0.13", default-features = false }
+nt-time = { version = "0.13", default-features = false, features = ["dos-date-time"] }
 thiserror = { version = "2", default-features = false }
 zerocopy = { version = "0.8.27", default-features = false, features = ["derive", "std"] }
 

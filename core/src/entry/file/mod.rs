@@ -16,6 +16,7 @@ use crate::{
     entry::Condition,
     header::flag_reader::read_flags::read_flags,
     read::ReadBytesExt,
+    string_getter,
     version::{InnoVersion, windows_version::WindowsVersionRange},
 };
 
@@ -143,33 +144,7 @@ impl File {
         Ok(file)
     }
 
-    /// Returns the source file path as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn source(&self) -> Option<&str> {
-        self.source.as_deref()
-    }
-
-    /// Returns the destination file path as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn destination(&self) -> Option<&str> {
-        self.destination.as_deref()
-    }
-
-    /// Returns the install font name as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn install_font_name(&self) -> Option<&str> {
-        self.install_font_name.as_deref()
-    }
-
-    /// Returns the strong assembly name as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn strong_assembly_name(&self) -> Option<&str> {
-        self.strong_assembly_name.as_deref()
-    }
+    string_getter!(source, destination, install_font_name, strong_assembly_name,);
 
     /// Returns the location index into the data entry list.
     #[must_use]

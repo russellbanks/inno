@@ -7,6 +7,7 @@ use zerocopy::{Immutable, KnownLayout, LE, TryFromBytes, ValidityError, try_tran
 use super::Condition;
 use crate::{
     InnoVersion, ReadBytesExt, WindowsVersionRange, header::flag_reader::read_flags::read_flags,
+    string_getter,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -90,54 +91,16 @@ impl Icon {
         Ok(icon)
     }
 
-    /// Returns the name of the icon as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
-    }
+    string_getter!(
+        name,
+        filename,
+        parameters,
+        working_directory,
+        file,
+        comment,
+        app_user_model_id
+    );
 
-    /// Returns the filename of the icon as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn filename(&self) -> Option<&str> {
-        self.filename.as_deref()
-    }
-
-    /// Returns the parameters of the icon as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn parameters(&self) -> Option<&str> {
-        self.parameters.as_deref()
-    }
-
-    /// Returns the working directory of the icon as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn working_directory(&self) -> Option<&str> {
-        self.working_directory.as_deref()
-    }
-
-    /// Returns the file of the icon as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn file(&self) -> Option<&str> {
-        self.file.as_deref()
-    }
-
-    /// Returns the comment of the icon as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn comment(&self) -> Option<&str> {
-        self.comment.as_deref()
-    }
-
-    /// Returns the `AppUserModelId` of the icon as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn app_user_model_id(&self) -> Option<&str> {
-        self.app_user_model_id.as_deref()
-    }
 
     /// Returns the `AppUserModelToastActivatorClsid` of the icon as a string slice.
     #[must_use]

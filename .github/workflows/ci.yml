@@ -4,12 +4,13 @@ on: [ push, pull_request ]
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: -D warnings
 
 jobs:
   test:
     name: Rust ${{ matrix.channel }}
     runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
     strategy:
       fail-fast: false
       matrix:

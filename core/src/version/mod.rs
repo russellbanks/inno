@@ -334,9 +334,9 @@ impl InnoVersion {
                 revision: 0,
                 ..
             } => Some(vec![
-                Self::new(1, 3, 22, 0),
-                Self::new(1, 3, 23, 0),
-                Self::new(1, 3, 24, 0),
+                Self::new_with_variant(1, 3, 22, 0, self.variant),
+                Self::new_with_variant(1, 3, 23, 0, self.variant),
+                Self::new_with_variant(1, 3, 24, 0, self.variant),
             ]),
             Self {
                 major: 2,
@@ -344,42 +344,42 @@ impl InnoVersion {
                 patch: 1,
                 revision: 0,
                 ..
-            } => Some(vec![Self::new(2, 0, 2, 0)]),
+            } => Some(vec![Self::new_with_variant(2, 0, 2, 0, self.variant)]),
             Self {
                 major: 3,
                 minor: 0,
                 patch: 3,
                 revision: 0,
                 ..
-            } => Some(vec![Self::new(3, 0, 4, 0)]),
+            } => Some(vec![Self::new_with_variant(3, 0, 4, 0, self.variant)]),
             Self {
                 major: 4,
                 minor: 2,
                 patch: 3,
                 revision: 0,
                 ..
-            } => Some(vec![Self::new(4, 2, 4, 0)]),
+            } => Some(vec![Self::new_with_variant(4, 2, 4, 0, self.variant)]),
             Self {
                 major: 5,
                 minor: 3,
                 patch: 10,
                 revision: 0,
                 ..
-            } => Some(vec![Self::new(5, 3, 10, 1)]),
+            } => Some(vec![Self::new_with_variant(5, 3, 10, 1, self.variant)]),
             Self {
                 major: 5,
                 minor: 4,
                 patch: 2,
                 revision: 0,
                 ..
-            } => Some(vec![Self::new(5, 4, 2, 1)]),
+            } => Some(vec![Self::new_with_variant(5, 4, 2, 1, self.variant)]),
             Self {
                 major: 5,
                 minor: 5,
                 patch: 0,
                 revision: 0,
                 ..
-            } => Some(vec![Self::new(5, 5, 0, 1)]),
+            } => Some(vec![Self::new_with_variant(5, 5, 0, 1, self.variant)]),
             Self {
                 major: 5,
                 minor: 5,
@@ -387,9 +387,9 @@ impl InnoVersion {
                 revision: 0 | 1,
                 ..
             } => Some(vec![
-                Self::new(5, 5, 8, 0),
-                Self::new(5, 5, 9, 0),
-                Self::new(5, 6, 0, 0),
+                Self::new_with_variant(5, 5, 8, 0, self.variant),
+                Self::new_with_variant(5, 5, 9, 0, self.variant),
+                Self::new_with_variant(5, 6, 0, 0, self.variant),
             ]),
             _ => None,
         }

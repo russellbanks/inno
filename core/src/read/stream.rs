@@ -27,7 +27,7 @@ impl<R: Read> InnoStreamReader<R> {
     pub fn new(mut inner: R, version: InnoVersion) -> Result<Self> {
         let compression = Self::read_header(&mut inner, version)?;
 
-        let mut chunk_reader = InnoBlockReader::new(inner.take(compression.size().into()));
+        let mut chunk_reader = InnoBlockReader::new(inner.take(compression.size()));
 
         Ok(Self {
             inner: match compression {

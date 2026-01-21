@@ -16,6 +16,7 @@ pub struct FlagReader<'reader, F, R> {
     current_byte: u8,
     /// Number of bytes read (used to determine if padding is needed)
     bytes_read: usize,
+    min_bytes: Option<usize>,
 }
 
 impl<'reader, F, R> FlagReader<'reader, F, R>
@@ -30,6 +31,7 @@ where
             bit_pos: 0,
             current_byte: 0,
             bytes_read: 0,
+            min_bytes: None,
         }
     }
 
@@ -46,9 +48,20 @@ where
         Ok(())
     }
 
+    pub fn with_min_bytes(mut self, min: usize) -> Self {
+        self.min_bytes = Some(min);
+        self
+    }
+
     pub fn finalize(self) -> io::Result<F> {
         // 3-byte bitfields are padded to 4 bytes
-        if self.bytes_read == 3 {
+        if let Some(min) = self.min_bytes {
+            let mut bytes_read = self.bytes_read;
+            while bytes_read < min {
+                self.reader.read_u8()?;
+                bytes_read += 1;
+            }
+        } else if self.bytes_read == 3 {
             self.reader.read_u8()?;
         }
 
@@ -80,94 +93,108 @@ where
 
 pub mod read_flags {
     macro_rules! read_flags {
-    // Entry point: no flags
-    ($reader_init:expr $(,)?) => {{
-        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-        flag_reader.finalize()
-    }};
+        // Entry point: no flags
+        ($reader_init:expr $(,)?) => {{
+            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+            flag_reader.finalize()
+        }};
 
-    // Entry point: list of flags
-    ($reader_init:expr, [$($flags:expr),+ $(,)?]) => {{
-        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-        flag_reader.add([$($flags),+])?;
-        flag_reader.finalize()
-    }};
+        // Entry point: list of flags
+        ($reader_init:expr, [$($flags:expr),+ $(,)?]) => {{
+            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+            flag_reader.add([$($flags),+])?;
+            flag_reader.finalize()
+        }};
 
-    // Entry point: list followed by more
-    ($reader_init:expr, [$($flags:expr),+ $(,)?], $($rest:tt)+) => {{
-        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-        flag_reader.add([$($flags),+])?;
-        read_flags!(@internal flag_reader, $($rest)+)
-    }};
+        // Entry point: list followed by more
+        ($reader_init:expr, [$($flags:expr),+ $(,)?], $($rest:tt)+) => {{
+            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+            flag_reader.add([$($flags),+])?;
+            read_flags!(@internal flag_reader, $($rest)+)
+        }};
 
-    // Entry point: if condition
-    ($reader_init:expr, if $cond:expr => $flag:expr $(,)?) => {{
-        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-        if $cond {
+        // Entry point: if condition
+        ($reader_init:expr, if $cond:expr => $flag:expr $(,)?) => {{
+            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+            if $cond {
+                flag_reader.add($flag)?;
+            }
+            flag_reader.finalize()
+        }};
+
+        // Entry point: if condition followed by more
+        ($reader_init:expr, if $cond:expr => $flag:expr, $($rest:tt)+) => {{
+            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
+            if $cond {
+                flag_reader.add($flag)?;
+            }
+            read_flags!(@internal flag_reader, $($rest)+)
+        }};
+
+        // Entry point: single flag
+        ($reader_init:expr, $flag:expr $(,)?) => {{
+            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
             flag_reader.add($flag)?;
-        }
-        flag_reader.finalize()
-    }};
+            flag_reader.finalize()
+        }};
 
-    // Entry point: if condition followed by more
-    ($reader_init:expr, if $cond:expr => $flag:expr, $($rest:tt)+) => {{
-        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-        if $cond {
+        // Entry point: single flag with more
+        ($reader_init:expr, $flag:expr, $($rest:tt)+) => {{
+            let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
             flag_reader.add($flag)?;
-        }
-        read_flags!(@internal flag_reader, $($rest)+)
-    }};
+            read_flags!(@internal flag_reader, $($rest)+)
+        }};
 
-    // Entry point: single flag
-    ($reader_init:expr, $flag:expr $(,)?) => {{
-        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-        flag_reader.add($flag)?;
-        flag_reader.finalize()
-    }};
+        // === Internal recursion ===
 
-    // Entry point: single flag with more
-    ($reader_init:expr, $flag:expr, $($rest:tt)+) => {{
-        let mut flag_reader = crate::header::flag_reader::FlagReader::new($reader_init);
-        flag_reader.add($flag)?;
-        read_flags!(@internal flag_reader, $($rest)+)
-    }};
+        (@internal $reader:ident, [$($flags:expr),+ $(,)?] $(,)?) => {{
+            $reader.add([$($flags),+])?;
+            $reader.finalize()
+        }};
 
-    // === Internal recursion ===
+        (@internal $reader:ident, [$($flags:expr),+ $(,)?], $($rest:tt)+) => {{
+            $reader.add([$($flags),+])?;
+            read_flags!(@internal $reader, $($rest)+)
+        }};
 
-    (@internal $reader:ident, [$($flags:expr),+ $(,)?] $(,)?) => {{
-        $reader.add([$($flags),+])?;
-        $reader.finalize()
-    }};
+        (@internal $reader:ident, if $cond:expr => $flag:expr $(,)?) => {{
+            if $cond {
+                $reader.add($flag)?;
+            }
+            $reader.finalize()
+        }};
 
-    (@internal $reader:ident, [$($flags:expr),+ $(,)?], $($rest:tt)+) => {{
-        $reader.add([$($flags),+])?;
-        read_flags!(@internal $reader, $($rest)+)
-    }};
+        (@internal $reader:ident, if $cond:expr => $flag:expr, $($rest:tt)+) => {{
+            if $cond {
+                $reader.add($flag)?;
+            }
+            read_flags!(@internal $reader, $($rest)+)
+        }};
 
-    (@internal $reader:ident, if $cond:expr => $flag:expr $(,)?) => {{
-        if $cond {
+        (@internal $reader:ident, $flag:expr $(,)?) => {{
             $reader.add($flag)?;
-        }
-        $reader.finalize()
-    }};
+            $reader.finalize()
+        }};
 
-    (@internal $reader:ident, if $cond:expr => $flag:expr, $($rest:tt)+) => {{
-        if $cond {
+        (@internal $reader:ident, $flag:expr, $($rest:tt)+) => {{
             $reader.add($flag)?;
-        }
-        read_flags!(@internal $reader, $($rest)+)
-    }};
+            read_flags!(@internal $reader, $($rest)+)
+        }};
 
-    (@internal $reader:ident, $flag:expr $(,)?) => {{
-        $reader.add($flag)?;
-        $reader.finalize()
-    }};
+        (@internal $reader:ident, pad => $min:expr $(,)?) => {{
+            let reader = $reader.with_min_bytes($min);
+            reader.finalize()
+        }};
 
-    (@internal $reader:ident, $flag:expr, $($rest:tt)+) => {{
-        $reader.add($flag)?;
-        read_flags!(@internal $reader, $($rest)+)
-    }};
-}
+        (@internal $reader:ident, pad if $cond:expr => $min:expr $(,)?) => {{
+            let reader = if $cond {
+                $reader.with_min_bytes($min)
+            } else {
+                $reader
+            };
+            reader.finalize()
+        }};
+    }
 
     pub(crate) use read_flags;
 }

@@ -49,7 +49,11 @@ impl<R: Read> InnoStreamReader<R> {
         let mut crc32_reader = Crc32Reader::new(reader);
 
         let compression = if version >= (4, 0, 9) {
-            let size = crc32_reader.read_u32::<LE>()?;
+            let size = if version >= 6.7 {
+                crc32_reader.read_u64::<LE>()?
+            } else {
+                crc32_reader.read_u32::<LE>()?.into()
+            };
             let compressed = crc32_reader.read_u8()? != 0;
 
             if compressed {
@@ -66,13 +70,13 @@ impl<R: Read> InnoStreamReader<R> {
             let uncompressed_size = crc32_reader.read_u32::<LE>()?;
 
             let mut compression = if compressed_size.cast_signed() == -1 {
-                Compression::Stored(uncompressed_size)
+                Compression::Stored(uncompressed_size.into())
             } else {
-                Compression::Zlib(compressed_size)
+                Compression::Zlib(compressed_size.into())
             };
 
             // Add the size of a CRC32 checksum for each 4KiB sub-block
-            *compression.size_mut() += compression.size().div_ceil(u32::from(INNO_BLOCK_SIZE)) * 4;
+            *compression.size_mut() += compression.size().div_ceil(INNO_BLOCK_SIZE.into()) * 4;
 
             compression
         };

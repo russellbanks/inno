@@ -32,7 +32,8 @@ use zerocopy::LE;
 
 use super::{InnoVersion, WindowsVersionRange, read::ReadBytesExt};
 use crate::{
-    encryption::EncryptionHeader, entry::Checksum, error::InnoError, string::PascalString,
+    encryption::EncryptionHeader, entry::Checksum, error::InnoError,
+    header::wizard::LightControlStyling, string::PascalString,
 };
 
 // https://github.com/jrsoftware/issrc/blob/main/Projects/Src/Shared.Struct.pas
@@ -80,6 +81,11 @@ pub struct Header {
     architectures_install_in_64_bit_mode_expr: Option<PascalString>,
     close_applications_filter_excludes: Option<PascalString>,
     seven_zip_library_name: Option<PascalString>,
+    use_previous_app_dir: Option<PascalString>,
+    use_previous_group: Option<PascalString>,
+    use_previous_setup_type: Option<PascalString>,
+    use_previous_tasks: Option<PascalString>,
+    use_previous_user_info: Option<PascalString>,
     license_text: Option<String>,
     info_before: Option<String>,
     info_after: Option<String>,
@@ -202,6 +208,13 @@ impl Header {
         if version >= 6.5 {
             header.seven_zip_library_name = reader.read_pascal_string()?;
         }
+        if version >= 6.7 {
+            header.use_previous_app_dir = reader.read_pascal_string()?;
+            header.use_previous_group = reader.read_pascal_string()?;
+            header.use_previous_setup_type = reader.read_pascal_string()?;
+            header.use_previous_tasks = reader.read_pascal_string()?;
+            header.use_previous_user_info = reader.read_pascal_string()?;
+        }
         if version >= (5, 2, 5) {
             header.license_text = reader.read_decoded_pascal_string(WINDOWS_1252)?;
             header.info_before = reader.read_decoded_pascal_string(WINDOWS_1252)?;
@@ -260,17 +273,35 @@ impl Header {
                 };
             }
         }
+
         if version >= (6, 5, 2) {
             header.wizard.image_back_color = reader.read_t::<Color>()?;
             header.wizard.small_image_back_color = reader.read_t::<Color>()?;
+
+            if version >= 6.7 {
+                header.wizard.back_color = reader.read_t::<Color>()?;
+            }
         }
+
         if version >= 6.6 {
             header.wizard.image_back_color_dynamic_dark = reader.read_t::<Color>()?;
             header.wizard.small_image_back_color_dynamic_dark = reader.read_t::<Color>()?;
+
+            if version >= 6.7 {
+                header.wizard.back_color_dynamic_dark = reader.read_t::<Color>()?;
+            }
         }
+
         if version >= (6, 6, 1) {
             header.wizard.image_opacity = Some(reader.read_u8()?);
+
+            if version >= 6.7 {
+                header.wizard.back_image_opacity = Some(reader.read_u8()?);
+                header.wizard.light_control_setting =
+                    Some(LightControlStyling::try_read_from_io(&mut reader)?);
+            }
         }
+
         if version >= 4 {
             header.extra_disk_space_required = reader.read_u64::<LE>()?;
             header.slices_per_disk = reader.read_u32::<LE>()?;
@@ -407,29 +438,27 @@ impl Header {
             if version < (1, 3, 6) => HeaderFlags::OVERWRITE_UNINSTALL_REG_ENTRIES,
             if version < (5, 6, 1) => HeaderFlags::CHANGES_ASSOCIATIONS,
             if ((1, 3, 0)..(5, 3, 8)).contains(&version) => HeaderFlags::CREATE_UNINSTALL_REG_KEY,
-            if version >= (1, 3, 1) => HeaderFlags::USE_PREVIOUS_APP_DIR,
+            if ((1, 3, 1)..(6, 7, 0)).contains(&version) => HeaderFlags::USE_PREVIOUS_APP_DIR,
             if version >= (1, 3, 3) && version < (6, 4, 0, 1) => HeaderFlags::BACK_COLOR_HORIZONTAL,
-            if version >= (1, 3, 10) => HeaderFlags::USE_PREVIOUS_GROUP,
+            if ((1, 3, 10)..(6, 7, 0)).contains(&version) => HeaderFlags::USE_PREVIOUS_GROUP,
             if version >= (1, 3, 20) => HeaderFlags::UPDATE_UNINSTALL_LOG_APP_NAME,
-            if version >= 2 || (version.is_isx() && version >= (1, 3, 10)) => HeaderFlags::USE_PREVIOUS_SETUP_TYPE,
+            if (version >= 2 || (version.is_isx() && version >= (1, 3, 10))) && version < 6.7 => HeaderFlags::USE_PREVIOUS_SETUP_TYPE,
             if version >= 2 => [
                 HeaderFlags::DISABLE_READY_MEMO,
                 HeaderFlags::ALWAYS_SHOW_COMPONENTS_LIST,
                 HeaderFlags::FLAT_COMPONENTS_LIST,
                 HeaderFlags::SHOW_COMPONENT_SIZES,
-                HeaderFlags::USE_PREVIOUS_TASKS,
-                HeaderFlags::DISABLE_READY_PAGE,
             ],
+            if (2.0..6.7).contains(&version) => HeaderFlags::USE_PREVIOUS_TASKS,
+            if version >= 2 => HeaderFlags::DISABLE_READY_PAGE,
             if version >= (2, 0, 7) => [
                 HeaderFlags::ALWAYS_SHOW_DIR_ON_READY_PAGE,
                 HeaderFlags::ALWAYS_SHOW_GROUP_ON_READY_PAGE,
             ],
             if ((2, 0, 17)..(4, 1, 5)).contains(&version) => HeaderFlags::BZIP_USED,
             if version >= (2, 0, 18) => HeaderFlags::ALLOW_UNC_PATH,
-            if version >= 3 => [
-                HeaderFlags::USER_INFO_PAGE,
-                HeaderFlags::USE_PREVIOUS_USER_INFO,
-            ],
+            if version >= 3 => HeaderFlags::USER_INFO_PAGE,
+            if (3.0..6.7).contains(&version) => HeaderFlags::USE_PREVIOUS_USER_INFO,
             if version >= (3, 0, 1) => HeaderFlags::UNINSTALL_RESTART_COMPUTER,
             if version >= (3, 0, 3) => HeaderFlags::RESTART_IF_NEEDED_BY_RUN,
             if version >= 4 || (version.is_isx() && version >= (3, 0, 3)) => HeaderFlags::SHOW_TASKS_TREE_LINES,
@@ -463,8 +492,13 @@ impl Header {
                 HeaderFlags::WIZARD_MODERN,
                 HeaderFlags::WIZARD_BORDER_STYLED,
                 HeaderFlags::WIZARD_KEEP_ASPECT_RATIO,
-                HeaderFlags::WIZARD_LIGHT_BUTTONS_UNSTYLED,
             ],
+            if (6.6..6.7).contains(&version) => HeaderFlags::WIZARD_LIGHT_BUTTONS_UNSTYLED,
+            if version >= 6.7 => [
+                HeaderFlags::REDIRECTION_GUARD,
+                HeaderFlags::WIZARD_BEVELS_HIDDEN,
+            ],
+            pad if version >= 6.7 => 8,
         ).map(|mut read_flags| {
             if version < (4, 0, 9) {
                 read_flags |= HeaderFlags::ALLOW_CANCEL_DURING_INSTALL;
@@ -521,7 +555,12 @@ impl Header {
             architectures_allowed_expr,
             architectures_install_in_64_bit_mode_expr,
             close_applications_filter_excludes,
-            seven_zip_library_name
+            seven_zip_library_name,
+            use_previous_app_dir,
+            use_previous_group,
+            use_previous_setup_type,
+            use_previous_tasks,
+            use_previous_user_info,
         );
     }
 
@@ -827,6 +866,45 @@ impl Header {
     #[must_use]
     pub fn seven_zip_library_name(&self) -> Option<&str> {
         self.seven_zip_library_name
+            .as_ref()
+            .map(PascalString::as_str)
+    }
+
+    /// Returns whether to use the previous app directory.
+    #[doc(alias = "UsePreviousAppDir")]
+    #[must_use]
+    pub fn use_previous_app_dir(&self) -> Option<&str> {
+        self.use_previous_app_dir.as_ref().map(PascalString::as_str)
+    }
+
+    /// Returns whether to use the previous group.
+    #[doc(alias = "UsePreviousGroup")]
+    #[must_use]
+    pub fn use_previous_group(&self) -> Option<&str> {
+        self.use_previous_group.as_ref().map(PascalString::as_str)
+    }
+
+    /// Returns whether to use the previous setup type.
+    #[doc(alias = "UsePreviousSetupType")]
+    #[must_use]
+    pub fn use_previous_setup_type(&self) -> Option<&str> {
+        self.use_previous_setup_type
+            .as_ref()
+            .map(PascalString::as_str)
+    }
+
+    /// Returns whether to use the previous setup type.
+    #[doc(alias = "UsePreviousTasks")]
+    #[must_use]
+    pub fn use_previous_tasks(&self) -> Option<&str> {
+        self.use_previous_tasks.as_ref().map(PascalString::as_str)
+    }
+
+    /// Returns whether to use the previous user info
+    #[doc(alias = "UsePreviousUserInfo")]
+    #[must_use]
+    pub fn use_previous_user_info(&self) -> Option<&str> {
+        self.use_previous_user_info
             .as_ref()
             .map(PascalString::as_str)
     }
@@ -1268,13 +1346,18 @@ impl fmt::Debug for Header {
             .field("ArchitecturesDisallowed", &self.architectures_disallowed())
             .field(
                 "ArchitecturesInstallIn64BitMode",
-                &self.architectures_install_in_64_bit_mode,
+                &self.architectures_install_in_64_bit_mode(),
             )
             .field(
                 "CloseApplicationsFilterExcludes",
                 &self.close_applications_filter_excludes(),
             )
             .field("SevenZipLibraryName", &self.seven_zip_library_name())
+            .field("UsePreviousAppDir", &self.use_previous_app_dir())
+            .field("UsePreviousGroup", &self.use_previous_group())
+            .field("UsePreviousSetupType", &self.use_previous_setup_type())
+            .field("UsePreviousTasks", &self.use_previous_tasks())
+            .field("UsePreviousUserInfo", &self.use_previous_user_info())
             .field("LicenseText", &self.license_text())
             .field("InfoBeforeText", &self.info_before())
             .field("InfoAfterText", &self.info_after())

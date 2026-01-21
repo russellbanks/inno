@@ -46,7 +46,9 @@ impl Task {
             task.check = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        if version >= 4 || (version.is_isx() && version >= (3, 0, 3)) {
+        if version >= 6.7 {
+            task.level = reader.read_u8()?.into();
+        } else if version >= 4 || (version.is_isx() && version >= (3, 0, 3)) {
             task.level = reader.read_u32::<LE>()?;
         }
 

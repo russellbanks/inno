@@ -2,15 +2,15 @@ use std::fmt;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Compression {
-    Stored(u32),
-    Zlib(u32),
-    LZMA1(u32),
+    Stored(u64),
+    Zlib(u64),
+    LZMA1(u64),
 }
 
 impl Compression {
     /// Returns the size of the compressed bytes.
     #[must_use]
-    pub const fn size(self) -> u32 {
+    pub const fn size(self) -> u64 {
         match self {
             Self::Stored(size) | Self::Zlib(size) | Self::LZMA1(size) => size,
         }
@@ -18,7 +18,7 @@ impl Compression {
 
     /// Returns a mutable reference to the size of the compressed bytes.
     #[must_use]
-    pub const fn size_mut(&mut self) -> &mut u32 {
+    pub const fn size_mut(&mut self) -> &mut u64 {
         match self {
             Self::Stored(size) | Self::Zlib(size) | Self::LZMA1(size) => size,
         }

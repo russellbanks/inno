@@ -12,7 +12,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-inno = "0.3"
+inno = "0.4"
 ```
 
 Then, open an installer and inspect its contents:
@@ -66,7 +66,7 @@ See the `innex` CLI in this repository for a reference consumer.
 
 # Supported versions
 
-Parsing is supported up to Inno Setup 6.6.x. Newer installers may work but can introduce format
+Parsing is supported up to Inno Setup 6.7.x. Newer installers may work but can introduce format
 changes. In that case, you will get [`InnoError::UnsupportedVersion`].
 
 # Features
@@ -177,7 +177,7 @@ impl Inno {
     ///
     /// Inno Setup versions newer than this version are likely to have breaking changes where the
     /// changes have not yet been implemented into this library.
-    pub const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(6, 6, u8::MAX, u8::MAX);
+    pub const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(6, 7, u8::MAX, u8::MAX);
 
     pub fn new<R>(mut reader: R) -> Result<Self, InnoError>
     where

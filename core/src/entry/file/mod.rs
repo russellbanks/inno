@@ -135,7 +135,8 @@ impl File {
                 FileFlags::UNSET_NTFS_COMPRESSION,
             ],
             if version >= (5, 2, 5) => FileFlags::GAC_INSTALL,
-            if version >= 6.5 => [FileFlags::DOWNLOAD, FileFlags::EXTRACT_ARCHIVE]
+            if version >= 6.5 => [FileFlags::DOWNLOAD, FileFlags::EXTRACT_ARCHIVE],
+            pad if version >= 6.7 => 8,
         )?;
 
         file.r#type = FileType::try_read_from_io(&mut reader)?;

@@ -54,7 +54,9 @@ impl Component {
             reader.read_u32::<LE>()?.into()
         };
 
-        if version >= 4 || (version.is_isx() && version >= (3, 0, 3)) {
+        if version >= 6.7 {
+            component.level = reader.read_u8()?.into();
+        } else if version >= 4 || (version.is_isx() && version >= (3, 0, 3)) {
             component.level = reader.read_u32::<LE>()?;
         }
 

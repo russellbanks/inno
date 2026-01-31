@@ -2,7 +2,7 @@ use std::io;
 
 use encoding_rs::Encoding;
 
-use crate::read::ReadBytesExt;
+use crate::{read::ReadBytesExt, string_getter};
 
 /// <https://github.com/jrsoftware/issrc/blob/is-6_5_1/Projects/Src/Shared.Struct.pas#L232>
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -24,24 +24,5 @@ impl ISSigKey {
         })
     }
 
-    /// Returns the Public X value.
-    #[must_use]
-    #[inline]
-    pub fn public_x(&self) -> Option<&str> {
-        self.public_x.as_deref()
-    }
-
-    /// Returns the Public Y value.
-    #[must_use]
-    #[inline]
-    pub fn public_y(&self) -> Option<&str> {
-        self.public_y.as_deref()
-    }
-
-    /// Returns the Runtime ID.
-    #[must_use]
-    #[inline]
-    pub fn runtime_id(&self) -> Option<&str> {
-        self.runtime_id.as_deref()
-    }
+    string_getter!(public_x, public_y, runtime_id);
 }

@@ -6,6 +6,7 @@ use zerocopy::LE;
 
 use crate::{
     InnoVersion, ReadBytesExt, WindowsVersionRange, header::flag_reader::read_flags::read_flags,
+    string_getter,
 };
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -70,47 +71,14 @@ impl Task {
         Ok(task)
     }
 
-    /// Returns the name of the task as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
-    }
-
-    /// Returns the description of the task as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn description(&self) -> Option<&str> {
-        self.description.as_deref()
-    }
-
-    /// Returns the group description of the task as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn group_description(&self) -> Option<&str> {
-        self.group_description.as_deref()
-    }
-
-    /// Returns the components of the task as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn components(&self) -> Option<&str> {
-        self.components.as_deref()
-    }
-
-    /// Returns the languages of the task as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn languages(&self) -> Option<&str> {
-        self.languages.as_deref()
-    }
-
-    /// Returns the check string of the task as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn check(&self) -> Option<&str> {
-        self.check.as_deref()
-    }
+    string_getter!(
+        name,
+        description,
+        group_description,
+        languages,
+        components,
+        check
+    );
 
     /// Returns the level of the task.
     #[must_use]

@@ -2,7 +2,7 @@ use std::io;
 
 use encoding_rs::Encoding;
 
-use crate::{read::ReadBytesExt, version::InnoVersion};
+use crate::{read::ReadBytesExt, string_getter, version::InnoVersion};
 
 #[derive(Clone, Debug, Default)]
 pub struct Condition {
@@ -56,38 +56,12 @@ impl Condition {
         self.components.as_deref()
     }
 
-    /// Returns the tasks as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn tasks(&self) -> Option<&str> {
-        self.tasks.as_deref()
-    }
-
-    /// Returns the languages as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn languages(&self) -> Option<&str> {
-        self.languages.as_deref()
-    }
-
-    /// Returns the check condition as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn check(&self) -> Option<&str> {
-        self.check.as_deref()
-    }
-
-    /// Returns the after install condition as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn after_install(&self) -> Option<&str> {
-        self.after_install.as_deref()
-    }
-
-    /// Returns the before install condition as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn before_install(&self) -> Option<&str> {
-        self.before_install.as_deref()
-    }
+    string_getter!(
+        components,
+        tasks,
+        languages,
+        check,
+        after_install,
+        before_install,
+    );
 }

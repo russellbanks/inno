@@ -123,6 +123,9 @@ fn inno_6_6_0() -> Result<(), Box<dyn Error>> {
 
     assert_eq!(inno.header.wizard_image_opacity(), None);
 
+    assert!(!inno.wizard().images_dynamic_dark().is_empty());
+    assert!(!inno.wizard().small_images_dynamic_dark().is_empty());
+
     Ok(())
 }
 
@@ -158,6 +161,22 @@ fn inno_6_7_0() -> Result<(), Box<dyn Error>> {
     assert_eq!(inno.header.use_previous_setup_type(), Some("yes"));
     assert_eq!(inno.header.use_previous_tasks(), Some("yes"));
     assert_eq!(inno.header.use_previous_user_info(), Some("yes"));
+
+    Ok(())
+}
+
+#[test]
+#[ignore]
+fn inno_6_7_1() -> Result<(), Box<dyn Error>> {
+    let inno_bytes = download_inno_version("6.7.1")?;
+    let inno = Inno::new(Cursor::new(inno_bytes))?;
+
+    assert_eq!(inno.version(), InnoVersion::new(6, 7, 0, 0));
+    assert!(inno.version().is_unicode());
+
+    // 6.7.0 parses without these, but 6.7.1 fails
+    assert!(inno.wizard().back_images().is_empty());
+    assert!(inno.wizard().back_images_dynamic_dark().is_empty());
 
     Ok(())
 }

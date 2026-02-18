@@ -154,7 +154,7 @@ impl InnoVersion {
 
         // Check for "ISX" or "Inno Setup Extensions"
         if remaining.windows(ISX.len()).any(|window| window == ISX)
-            || remaining
+            || raw_version
                 .windows(INNO_SETUP_EXTENSIONS.len())
                 .any(|window| window == INNO_SETUP_EXTENSIONS)
         {
@@ -604,11 +604,11 @@ mod tests {
     )]
     #[case(
         b"My Inno Setup Extensions Setup Data (3.0.4)",
-        InnoVersion::new(3, 0, 4, 0)
+        InnoVersion::new_with_variant(3, 0, 4, 0, VersionVariant::ISX)
     )]
     #[case(
         b"My Inno Setup Extensions Setup Data (3.0.6.1)",
-        InnoVersion::new(3, 0, 6, 1)
+        InnoVersion::new_with_variant(3, 0, 6, 1, VersionVariant::ISX)
     )]
     #[case(b"Inno Setup Setup Data (5.3.10)", InnoVersion::new(5, 3, 10, 0))]
     #[case(

@@ -169,7 +169,7 @@ impl Header {
             header.default_user_name = reader.read_pascal_string()?;
             header.default_user_organisation = reader.read_pascal_string()?;
         }
-        if version >= 4 {
+        if version >= 4 || (version.is_isx() && version >= (3, 0, 6, 1)) {
             header.default_serial = reader.read_pascal_string()?;
         }
         if ((4, 0, 0)..(5, 2, 5)).contains(&version) || (version.is_isx() && version >= (1, 3, 24))

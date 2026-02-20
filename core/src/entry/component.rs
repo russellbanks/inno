@@ -6,6 +6,7 @@ use zerocopy::LE;
 
 use crate::{
     read::ReadBytesExt,
+    string_getter,
     version::{InnoVersion, windows_version::WindowsVersionRange},
 };
 
@@ -77,40 +78,7 @@ impl Component {
         Ok(component)
     }
 
-    /// Returns the name of the component as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
-    }
-
-    /// Returns the description of the component as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn description(&self) -> Option<&str> {
-        self.description.as_deref()
-    }
-
-    /// Returns the types of the component as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn types(&self) -> Option<&str> {
-        self.types.as_deref()
-    }
-
-    /// Returns the languages of the component as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn languages(&self) -> Option<&str> {
-        self.languages.as_deref()
-    }
-
-    /// Returns the check once string of the component as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn check_once(&self) -> Option<&str> {
-        self.check_once.as_deref()
-    }
+    string_getter!(name, description, types, languages, check_once,);
 
     /// Returns the extra disk space required by the component.
     #[must_use]

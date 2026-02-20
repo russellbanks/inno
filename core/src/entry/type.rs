@@ -4,7 +4,9 @@ use bitflags::bitflags;
 use encoding_rs::Encoding;
 use zerocopy::{Immutable, KnownLayout, LE, TryFromBytes};
 
-use crate::{InnoVersion, read::ReadBytesExt, version::windows_version::WindowsVersionRange};
+use crate::{
+    InnoVersion, read::ReadBytesExt, string_getter, version::windows_version::WindowsVersionRange,
+};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Type {
@@ -58,33 +60,7 @@ impl Type {
         Ok(r#type)
     }
 
-    /// Returns the name of the type as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
-    }
-
-    /// Returns the description of the type as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn description(&self) -> Option<&str> {
-        self.description.as_deref()
-    }
-
-    /// Returns the languages of the type as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn languages(&self) -> Option<&str> {
-        self.languages.as_deref()
-    }
-
-    /// Returns the check string of the type as a string slice.
-    #[must_use]
-    #[inline]
-    pub fn check(&self) -> Option<&str> {
-        self.check.as_deref()
-    }
+    string_getter!(name, description, languages, check,);
 
     /// Returns whether the type is custom.
     #[must_use]

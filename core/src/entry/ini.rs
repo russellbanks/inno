@@ -5,13 +5,13 @@ use encoding_rs::Encoding;
 use zerocopy::LE;
 
 use super::Condition;
-use crate::{InnoVersion, ReadBytesExt, WindowsVersionRange};
+use crate::{InnoVersion, ReadBytesExt, WindowsVersionRange, string_getter};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Ini {
     file: Cow<'static, str>,
-    section: Option<String>,
-    key: Option<String>,
+    section_name: Option<String>,
+    key_name: Option<String>,
     value: Option<String>,
     flags: IniFlags,
 }
@@ -35,8 +35,8 @@ impl Ini {
             file: reader
                 .read_decoded_pascal_string(codepage)?
                 .map_or(Cow::Borrowed(Self::DEFAULT_FILE), Cow::Owned),
-            section: reader.read_decoded_pascal_string(codepage)?,
-            key: reader.read_decoded_pascal_string(codepage)?,
+            section_name: reader.read_decoded_pascal_string(codepage)?,
+            key_name: reader.read_decoded_pascal_string(codepage)?,
             value: reader.read_decoded_pascal_string(codepage)?,
             ..Self::default()
         };
@@ -57,26 +57,7 @@ impl Ini {
         &self.file
     }
 
-    /// Returns the section name for the INI entry.
-    #[must_use]
-    #[inline]
-    pub fn section_name(&self) -> Option<&str> {
-        self.section.as_deref()
-    }
-
-    /// Returns the key name for the INI entry.
-    #[must_use]
-    #[inline]
-    pub fn key_name(&self) -> Option<&str> {
-        self.key.as_deref()
-    }
-
-    /// Returns the value for the INI entry.
-    #[must_use]
-    #[inline]
-    pub fn value(&self) -> Option<&str> {
-        self.value.as_deref()
-    }
+    string_getter!(section_name, key_name, value);
 
     /// Returns the flags for the INI entry.
     #[must_use]

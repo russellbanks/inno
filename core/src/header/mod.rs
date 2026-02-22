@@ -346,8 +346,21 @@ impl Header {
             header.show_language_dialog = AutoBool::try_read_from_io(&mut reader)?;
             header.language_detection = LanguageDetection::try_read_from_io(&mut reader)?;
         }
-        if version >= (5, 3, 9) {
+        if version >= (4, 2, 6) {
             header.compression = Compression::try_read_from_io(&mut reader)?;
+        } else if version == (4, 2, 5) {
+            header.compression = match reader.read_u8()? {
+                0 => Compression::Stored,
+                1 => Compression::BZip2,
+                2 => Compression::LZMA1,
+                _ => Compression::Unknown,
+            };
+        } else if version >= (4, 1, 5) {
+            header.compression = match reader.read_u8()? {
+                0 => Compression::Zlib,
+                1 => Compression::BZip2,
+                _ => Compression::Unknown,
+            };
         }
         if ((5, 1)..(6, 3)).contains(&version) {
             header.architectures_allowed =

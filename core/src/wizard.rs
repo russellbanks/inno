@@ -12,8 +12,10 @@ use super::{
 pub struct Wizard {
     images: Vec<Vec<u8>>,
     small_images: Vec<Vec<u8>>,
+    back_images: Vec<Vec<u8>>,
     images_dynamic_dark: Vec<Vec<u8>>,
     small_images_dynamic_dark: Vec<Vec<u8>>,
+    back_images_dynamic_dark: Vec<Vec<u8>>,
     decompressor_dll: Vec<u8>,
     decrypt_dll: Vec<u8>,
 }
@@ -32,9 +34,17 @@ impl Wizard {
             wizard.small_images = Self::read_images(&mut reader, version)?;
         }
 
+        if version >= 6.7 {
+            wizard.back_images = Self::read_images(&mut reader, version)?;
+        }
+
         if version >= 6.6 {
-            wizard.images = Self::read_images(&mut reader, version)?;
-            wizard.small_images = Self::read_images(&mut reader, version)?;
+            wizard.images_dynamic_dark = Self::read_images(&mut reader, version)?;
+            wizard.small_images_dynamic_dark = Self::read_images(&mut reader, version)?;
+        }
+
+        if version >= 6.7 {
+            wizard.back_images_dynamic_dark = Self::read_images(&mut reader, version)?;
         }
 
         if header.compression() == Compression::BZip2
@@ -84,6 +94,34 @@ impl Wizard {
     #[inline]
     pub fn small_images(&self) -> &[Vec<u8>] {
         &self.small_images
+    }
+
+    /// Returns the back images used in the [Wizard].
+    #[must_use]
+    #[inline]
+    pub fn back_images(&self) -> &[Vec<u8>] {
+        &self.back_images
+    }
+
+    /// Returns the dynamic dark variant images used in the [Wizard].
+    #[must_use]
+    #[inline]
+    pub fn images_dynamic_dark(&self) -> &[Vec<u8>] {
+        &self.images_dynamic_dark
+    }
+
+    /// Returns the dynamic dark variant small images used in the [Wizard].
+    #[must_use]
+    #[inline]
+    pub fn small_images_dynamic_dark(&self) -> &[Vec<u8>] {
+        &self.small_images_dynamic_dark
+    }
+
+    /// Returns the dynamic dark variant back images used in the [Wizard].
+    #[must_use]
+    #[inline]
+    pub fn back_images_dynamic_dark(&self) -> &[Vec<u8>] {
+        &self.back_images_dynamic_dark
     }
 
     /// Returns the decompressor DLL, if present.

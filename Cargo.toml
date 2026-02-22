@@ -25,7 +25,7 @@ anstream = "1.0.0"
 anyhow = "1.0.100"
 bitflags = "2.10.0"
 camino = "1.1.12"
-clap = { version = "4.5.47", features = ["derive"] }
+clap = { version = "4.5.60", features = ["derive"] }
 crossterm = "0.29.0"
 inno = { version = "0.4.0", path = "core", features = ["chrono"] }
 itertools = { version = "0.14.0", default-features = false }

@@ -151,6 +151,34 @@ impl fmt::Debug for Wizard {
                 "SmallImages (image lengths)",
                 &self.small_images().iter().map(Vec::len).collect::<Vec<_>>(),
             )
+            .field(
+                "BackImages (image lengths)",
+                &self.back_images().iter().map(Vec::len).collect::<Vec<_>>(),
+            )
+            .field(
+                "Images Dynamic Dark (image lengths)",
+                &self
+                    .images_dynamic_dark()
+                    .iter()
+                    .map(Vec::len)
+                    .collect::<Vec<_>>(),
+            )
+            .field(
+                "SmallImages Dynamic Dark (image lengths)",
+                &self
+                    .small_images_dynamic_dark()
+                    .iter()
+                    .map(Vec::len)
+                    .collect::<Vec<_>>(),
+            )
+            .field(
+                "BackImages Dynamic Dark (image lengths)",
+                &self
+                    .back_images_dynamic_dark()
+                    .iter()
+                    .map(Vec::len)
+                    .collect::<Vec<_>>(),
+            )
             .field("DecompressorDLL (length)", &self.decompressor_dll().len())
             .field("DecryptDLL (length)", &self.decrypt_dll().len())
             .finish()

@@ -20,11 +20,11 @@ inno = "0.4"
 use inno::Inno;
 
 fn main() {
-    let inno_file = File::new("innosetup-6.7.0.exe").unwrap();
+    let inno_file = File::new("innosetup-6.7.1.exe").unwrap();
 
     let inno = Inno::new(file).unwrap();
 
-    println!("{}", inno.header.app_name);
+    println!("{}", inno.header.app_name());
 }
 ```
 

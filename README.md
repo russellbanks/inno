@@ -1,6 +1,6 @@
 # inno
 
-[![CI Status](https://github.com/russellbanks/inno/workflows/CI/badge.svg)](https://github.com/russellbanks/inno/actions)
+[![CI Status](https://github.com/russellbanks/inno/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/russellbanks/inno/actions/workflows/ci.yml?query=branch:main)
 [![Latest version](https://img.shields.io/crates/v/inno.svg)](https://crates.io/crates/inno)
 [![Documentation](https://docs.rs/inno/badge.svg)](https://docs.rs/inno)
 ![License](https://img.shields.io/crates/l/inno.svg)

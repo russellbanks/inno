@@ -26,25 +26,28 @@ impl Wizard {
         R: io::Read,
     {
         let mut wizard = Self {
-            images: Self::read_images(&mut reader, version)?,
+            images: Self::read_images(&mut reader, version, None)?,
             ..Self::default()
         };
 
         if version >= 2 || version.is_isx() {
-            wizard.small_images = Self::read_images(&mut reader, version)?;
+            wizard.small_images = Self::read_images(&mut reader, version, None)?;
         }
 
         if version >= 6.7 {
-            wizard.back_images = Self::read_images(&mut reader, version)?;
+            wizard.back_images = Self::read_images(&mut reader, version, None)?;
         }
 
         if version >= 6.6 {
-            wizard.images_dynamic_dark = Self::read_images(&mut reader, version)?;
-            wizard.small_images_dynamic_dark = Self::read_images(&mut reader, version)?;
+            wizard.images_dynamic_dark =
+                Self::read_images(&mut reader, version, Some(&wizard.images))?;
+            wizard.small_images_dynamic_dark =
+                Self::read_images(&mut reader, version, Some(&wizard.small_images))?;
         }
 
         if version >= 6.7 {
-            wizard.back_images_dynamic_dark = Self::read_images(&mut reader, version)?;
+            wizard.back_images_dynamic_dark =
+                Self::read_images(&mut reader, version, Some(&wizard.back_images))?;
         }
 
         if header.compression() == Compression::BZip2
@@ -61,15 +64,25 @@ impl Wizard {
         Ok(wizard)
     }
 
-    fn read_images<R>(mut reader: R, version: InnoVersion) -> io::Result<Vec<Vec<u8>>>
+    fn read_images<R>(
+        mut reader: R,
+        version: InnoVersion,
+        light_images: Option<&Vec<Vec<u8>>>,
+    ) -> io::Result<Vec<Vec<u8>>>
     where
         R: io::Read,
     {
         let count = if version >= 5.6 {
-            reader.read_u32::<LE>()?
+            reader.read_i32::<LE>()?
         } else {
             1
         };
+
+        if count == -1
+            && let Some(images) = light_images
+        {
+            return Ok(images.to_vec());
+        }
 
         let mut images = (0..count)
             .map(|_| reader.read_raw_pascal_string())

@@ -26,28 +26,25 @@ impl Wizard {
         R: io::Read,
     {
         let mut wizard = Self {
-            images: Self::read_images(&mut reader, version, None)?,
+            images: Self::read_images(&mut reader, version)?,
             ..Self::default()
         };
 
         if version >= 2 || version.is_isx() {
-            wizard.small_images = Self::read_images(&mut reader, version, None)?;
+            wizard.small_images = Self::read_images(&mut reader, version)?;
         }
 
         if version >= 6.7 {
-            wizard.back_images = Self::read_images(&mut reader, version, None)?;
+            wizard.back_images = Self::read_images(&mut reader, version)?;
         }
 
         if version >= 6.6 {
-            wizard.images_dynamic_dark =
-                Self::read_images(&mut reader, version, Some(&wizard.images))?;
-            wizard.small_images_dynamic_dark =
-                Self::read_images(&mut reader, version, Some(&wizard.small_images))?;
+            wizard.images_dynamic_dark = Self::read_images(&mut reader, version)?;
+            wizard.small_images_dynamic_dark = Self::read_images(&mut reader, version)?;
         }
 
         if version >= 6.7 {
-            wizard.back_images_dynamic_dark =
-                Self::read_images(&mut reader, version, Some(&wizard.back_images))?;
+            wizard.back_images_dynamic_dark = Self::read_images(&mut reader, version)?;
         }
 
         if header.compression() == Compression::BZip2
@@ -64,11 +61,7 @@ impl Wizard {
         Ok(wizard)
     }
 
-    fn read_images<R>(
-        mut reader: R,
-        version: InnoVersion,
-        light_images: Option<&Vec<Vec<u8>>>,
-    ) -> io::Result<Vec<Vec<u8>>>
+    fn read_images<R>(mut reader: R, version: InnoVersion) -> io::Result<Vec<Vec<u8>>>
     where
         R: io::Read,
     {
@@ -78,10 +71,8 @@ impl Wizard {
             1
         };
 
-        if count == -1
-            && let Some(images) = light_images
-        {
-            return Ok(images.to_vec());
+        if count == -1 {
+            return Ok(Vec::new());
         }
 
         let mut images = (0..count)

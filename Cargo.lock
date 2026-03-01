@@ -483,9 +483,9 @@ dependencies = [
 
 [[package]]
 name = "dos-date-time"
-version = "0.2.2"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8e3679b1ecab7c43804c6e2881a163521c2914c90144a4a321441bd77235c42"
+checksum = "e6bf3a6a5a5068b83e2bc1251735e040c3c0d54bc0bb829bec86d76eb1197689"
 dependencies = [
  "time",
 ]
@@ -1229,9 +1229,9 @@ dependencies = [
 
 [[package]]
 name = "nt-time"
-version = "0.13.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb05e8899d8da04eb63bbe0faed47f1632ace9f8bdd871645217695f896cd762"
+checksum = "293dcb75775acfac821c0be754ea8489cc606689f1a23faa11425c0154e5a85c"
 dependencies = [
  "chrono",
  "dos-date-time",

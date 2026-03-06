@@ -32,4 +32,5 @@ jiff = ["dep:jiff", "nt-time/jiff"]
 bytes = "1"
 reqwest = { version = "0.13", features = ["blocking"] }
 rstest = "0.26"
+semver = "1"
 

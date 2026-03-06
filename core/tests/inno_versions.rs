@@ -4,19 +4,39 @@ use bytes::Bytes;
 use inno::{Inno, version::InnoVersion};
 use reqwest::blocking;
 use rstest::rstest;
+use semver::Version;
 
 /// Downloads the specified Inno Setup into memory, returning its bytes.
+///
+/// # Errors
+///
+/// Returns a [`reqwest::Error`] if the request fails or the server returns a non-success status
+/// code.
+///
+/// # Panics
+///
+/// Panics if `version` is not a valid semantic version.
 fn download_inno_version(version: &str) -> reqwest::Result<Bytes> {
-    let url = format!(
-        "https://files.jrsoftware.org/is/{major}/{name}-{version}.exe",
-        major = version.chars().next().unwrap(),
-        name = if version < "5.5.9" || version == "6.3.3" {
-            "isetup"
-        } else {
-            "innosetup"
-        },
-        version = version
-    );
+    let semver = Version::parse(version).unwrap();
+
+    let url = if semver >= Version::new(6, 6, 0) {
+        format!(
+            "https://github.com/jrsoftware/issrc/releases/download/is-{major}_{minor}_{patch}/innosetup-{version}.exe",
+            major = semver.major,
+            minor = semver.minor,
+            patch = semver.patch
+        )
+    } else {
+        format!(
+            "https://files.jrsoftware.org/is/{major}/{name}-{version}.exe",
+            major = semver.major,
+            name = if semver < Version::new(5, 5, 9) || semver == Version::new(6, 3, 3) {
+                "isetup"
+            } else {
+                "innosetup"
+            },
+        )
+    };
 
     blocking::get(url)?.error_for_status()?.bytes()
 }

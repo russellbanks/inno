@@ -975,6 +975,7 @@ dependencies = [
  "nt-time",
  "reqwest",
  "rstest",
+ "semver",
  "thiserror 2.0.18",
  "zerocopy",
 ]

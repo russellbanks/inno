@@ -19,7 +19,7 @@ use semver::Version;
 fn download_inno_version(version: &str) -> reqwest::Result<Bytes> {
     let semver = Version::parse(version).unwrap();
 
-    let url = if semver >= Version::new(6, 6, 0) {
+    let url = if semver > Version::new(6, 0, 5) {
         format!(
             "https://github.com/jrsoftware/issrc/releases/download/is-{major}_{minor}_{patch}/innosetup-{version}.exe",
             major = semver.major,
@@ -30,7 +30,7 @@ fn download_inno_version(version: &str) -> reqwest::Result<Bytes> {
         format!(
             "https://files.jrsoftware.org/is/{major}/{name}-{version}.exe",
             major = semver.major,
-            name = if semver < Version::new(5, 5, 9) || semver == Version::new(6, 3, 3) {
+            name = if semver < Version::new(5, 5, 9) {
                 "isetup"
             } else {
                 "innosetup"

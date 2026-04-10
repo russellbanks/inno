@@ -60,16 +60,47 @@ struct Args {
     /// Output a debug representation of the entire Inno Setup structure
     #[arg(short, long)]
     debug: bool,
+
+    /// Extract files to the given directory
+    #[arg(short, long)]
+    extract: Option<Utf8PathBuf>,
+
+    /// Only extract files matching these paths (relative to the install root).
+    /// Can be specified multiple times. If omitted, all files are extracted.
+    #[arg(short, long = "file", requires = "extract")]
+    files: Vec<String>,
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    let file = File::open(&args.path)?;
-    let inno = Inno::new(file)?;
+    let mut file = File::open(&args.path)?;
+    let inno = Inno::new(&mut file)?;
 
     if args.debug {
         println!("{inno:#?}");
+        return Ok(());
+    }
+
+    if let Some(dest) = &args.extract {
+        std::fs::create_dir_all(dest.as_std_path())?;
+
+        if args.files.is_empty() {
+            let pb = indicatif::ProgressBar::new(inno.files().len() as u64);
+            pb.set_style(
+                indicatif::ProgressStyle::default_bar()
+                    .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} files ({eta})")
+                    .unwrap()
+                    .progress_chars("=>-"),
+            );
+            inno.extract_all_with_progress(&mut file, dest.as_std_path(), |done, _total| {
+                pb.set_position(done as u64);
+            })?;
+            pb.finish_with_message("done");
+            println!("Extracted all files to {dest}");
+        } else {
+            extract_matching(&inno, &mut file, dest.as_std_path(), &args.files)?;
+        }
         return Ok(());
     }
 
@@ -77,6 +108,30 @@ fn main() -> anyhow::Result<()> {
     let app_result = App::new(&inno).run(&mut terminal);
     ratatui::restore();
     app_result.map_err(anyhow::Error::from)
+}
+
+/// Extract only files whose destination path contains one of the given patterns.
+fn extract_matching(
+    inno: &Inno,
+    file: &mut File,
+    dest: &std::path::Path,
+    patterns: &[String],
+) -> anyhow::Result<()> {
+    let mut count = 0;
+    for (i, f) in inno.files().iter().enumerate() {
+        let Some(file_dest) = f.destination() else {
+            continue;
+        };
+        // Normalize the destination for matching
+        let normalized = file_dest.replace('\\', "/");
+        if patterns.iter().any(|p| normalized.contains(p.as_str())) {
+            inno.extract_file(file, i, dest)?;
+            println!("  {normalized}");
+            count += 1;
+        }
+    }
+    println!("Extracted {count} files to {}", dest.display());
+    Ok(())
 }
 
 struct App<'a> {

@@ -26,7 +26,7 @@ pub use icon::{Icon, IconFlags};
 pub use ini::Ini;
 pub use is_sig_key::ISSigKey;
 pub use language::Language;
-pub use location::{FileLocation, FileLocationFlags, SignMode};
+pub use location::{CompressionFilter, FileLocation, FileLocationFlags, SignMode};
 pub use message::{Message, MessageEntry};
 pub use permission::Permission;
 pub use registry::{RegRoot, RegistryEntry};

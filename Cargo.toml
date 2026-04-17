@@ -32,9 +32,6 @@ itertools = { version = "0.14.0", default-features = false }
 num-traits = "0.2.19"
 ratatui = { version = "0.29.0", default-features = false, features = ["crossterm"] }
 
-[features]
-lzma-static = ["inno/lzma-static"]
-
 [profile.release]
 codegen-units = 1
 lto = true

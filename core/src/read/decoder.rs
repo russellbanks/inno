@@ -1,12 +1,12 @@
 use std::io;
 
 use flate2::read::ZlibDecoder;
-use liblzma::read::XzDecoder;
+use lzma_rust2::LzmaReader;
 
 pub enum Decoder<R: io::Read> {
     Stored(R),
     Zlib(ZlibDecoder<R>),
-    LZMA1(XzDecoder<R>),
+    LZMA1(LzmaReader<R>),
 }
 
 impl<R: io::Read> Decoder<R> {
@@ -46,7 +46,7 @@ impl<R: io::Read> Decoder<R> {
         match self {
             Self::Stored(reader) => reader,
             Self::Zlib(reader) => reader.get_ref(),
-            Self::LZMA1(reader) => reader.get_ref(),
+            Self::LZMA1(reader) => reader.inner(),
         }
     }
 
@@ -58,7 +58,7 @@ impl<R: io::Read> Decoder<R> {
         match self {
             Self::Stored(reader) => reader,
             Self::Zlib(reader) => reader.get_mut(),
-            Self::LZMA1(reader) => reader.get_mut(),
+            Self::LZMA1(reader) => reader.inner_mut(),
         }
     }
 

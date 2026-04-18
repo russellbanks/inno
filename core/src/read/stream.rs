@@ -17,16 +17,6 @@ use crate::{
     version::InnoVersion,
 };
 
-/// Upper bound for the `dict_size` field in the 5-byte LZMA1 properties
-/// header.
-///
-/// The LZMA1 format allows dictionaries up to ~4 GiB, but real Inno Setup
-/// installers use small dictionaries (Inno's default is 8 MiB). 256 MiB is far
-/// above anything produced in practice, while still preventing a crafted
-/// installer from forcing `LzmaReader` into a multi-gigabyte allocation on
-/// construction.
-const MAX_LZMA1_DICT_SIZE: u32 = 256 * 1024 * 1024;
-
 pub struct InnoStreamReader<R: Read> {
     inner: Decoder<InnoBlockReader<Take<R>>>,
     compression: Compression,
@@ -42,18 +32,13 @@ impl<R: Read> InnoStreamReader<R> {
         Ok(Self {
             inner: match compression {
                 Compression::LZMA1(_) => {
-                    let (props, dict_size) = LzmaStreamHeader::read(&mut chunk_reader)?;
-                    if dict_size > MAX_LZMA1_DICT_SIZE {
-                        return Err(Error::new(
-                            ErrorKind::InvalidData,
-                            format!("LZMA1 dictionary size too large: {dict_size} bytes"),
-                        ));
-                    }
+                    let header = chunk_reader.read_t::<LzmaStreamHeader>()?;
+
                     Decoder::LZMA1(LzmaReader::new_with_props(
                         chunk_reader,
                         u64::MAX,
-                        props,
-                        dict_size,
+                        header.props(),
+                        header.dictionary_size(),
                         None,
                     )?)
                 }

@@ -136,6 +136,7 @@ use error::{HeaderStream, InnoError};
 pub use header::Header;
 use itertools::Itertools;
 use loader::SetupLoader;
+use lzma_stream_header::LzmaStreamHeader;
 use read::{ReadBytesExt, stream::InnoStreamReader};
 use version::{InnoVersion, windows_version::WindowsVersionRange};
 pub use wizard::Wizard;

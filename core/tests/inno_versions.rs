@@ -18,13 +18,21 @@ use semver::Version;
 /// Panics if `version` is not a valid semantic version.
 fn download_inno_version(version: &str) -> reqwest::Result<Bytes> {
     let semver = Version::parse(version).unwrap();
+    let Version {
+        major,
+        minor,
+        patch,
+        ..
+    } = semver;
 
-    let url = if semver > Version::new(6, 0, 5) {
+    let url = if major >= 6 {
         format!(
-            "https://github.com/jrsoftware/issrc/releases/download/is-{major}_{minor}_{patch}/innosetup-{version}.exe",
-            major = semver.major,
-            minor = semver.minor,
-            patch = semver.patch
+            "https://github.com/jrsoftware/issrc/releases/download/is-{major}_{minor}_{patch}{new}/innosetup-{version}.exe",
+            new = if semver == Version::new(6, 0, 3) || semver == Version::new(6, 0, 4) {
+                "-2"
+            } else {
+                ""
+            }
         )
     } else {
         format!(

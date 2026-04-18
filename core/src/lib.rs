@@ -72,13 +72,8 @@ changes. In that case, you will get [`InnoError::UnsupportedVersion`].
 # Features
 
 - LZMA/BZip2/Deflate detection through header metadata.
-- Optional static LZMA linking via the `lzma-static` feature for consumers that
-  need it:
-
-  ```toml
-  [dependencies]
-  inno = { version = "0.2", features = ["lzma-static"] }
-  ```
+- LZMA1 decompression of the Inno header stream via the pure-Rust `lzma-rust2`
+  crate, with no C dependency or native toolchain required.
 
 # Error handling
 
@@ -141,6 +136,7 @@ use error::{HeaderStream, InnoError};
 pub use header::Header;
 use itertools::Itertools;
 use loader::SetupLoader;
+use lzma_stream_header::LzmaStreamHeader;
 use read::{ReadBytesExt, stream::InnoStreamReader};
 use version::{InnoVersion, windows_version::WindowsVersionRange};
 pub use wizard::Wizard;

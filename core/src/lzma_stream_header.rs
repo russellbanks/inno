@@ -1,20 +1,27 @@
-use std::io::{Error, ErrorKind, Read, Result};
+use zerocopy::{FromBytes, Immutable, KnownLayout, LE, U32};
 
-use liblzma::stream::{Filters, Stream};
-
-pub struct LzmaStreamHeader;
+/// The 5-byte raw LZMA1 properties header used by Inno Setup's LZMA1 streams (same layout as the
+/// `.lzma` format): a single properties byte encoding lc/lp/pb, followed by a little-endian `u32`
+/// dictionary size.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, FromBytes, Immutable, KnownLayout)]
+#[repr(C)]
+pub struct LzmaStreamHeader {
+    props: u8,
+    dict_size: U32<LE>,
+}
 
 impl LzmaStreamHeader {
-    pub fn read<R>(src: &mut R) -> Result<Stream>
-    where
-        R: Read,
-    {
-        let mut properties = [0; 5];
-        src.read_exact(&mut properties)?;
+    /// Returns the LZMA properties byte.
+    #[must_use]
+    #[inline]
+    pub const fn props(self) -> u8 {
+        self.props
+    }
 
-        let mut filters = Filters::new();
-        filters.lzma1_properties(&properties)?;
-
-        Stream::new_raw_decoder(&filters).map_err(|error| Error::new(ErrorKind::InvalidData, error))
+    /// Returns the LZMA dictionary size.
+    #[must_use]
+    #[inline]
+    pub const fn dictionary_size(self) -> u32 {
+        self.dict_size.get()
     }
 }

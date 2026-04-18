@@ -1,15 +1,34 @@
 use std::io;
 
 use flate2::read::ZlibDecoder;
-use liblzma::read::XzDecoder;
+use lzma_rust2::LzmaReader;
+
+use crate::LzmaStreamHeader;
 
 pub enum Decoder<R: io::Read> {
     Stored(R),
     Zlib(ZlibDecoder<R>),
-    LZMA1(XzDecoder<R>),
+    LZMA1(Box<LzmaReader<R>>),
 }
 
 impl<R: io::Read> Decoder<R> {
+    /// Creates a new LZMA1 decoder from a reader and an [`LzmaStreamHeader`].
+    pub fn new_lzma1(reader: R, header: LzmaStreamHeader) -> lzma_rust2::Result<Self> {
+        LzmaReader::new_with_props(
+            reader,
+            u64::MAX,
+            header.props(),
+            header.dictionary_size(),
+            None,
+        )
+        .map(|reader| Self::LZMA1(Box::new(reader)))
+    }
+
+    /// Creates a new Zlib decoder from a reader.
+    pub fn new_zlib(reader: R) -> Self {
+        Self::Zlib(ZlibDecoder::new(reader))
+    }
+
     /// Returns `true` if the underlying stream is compressed.
     #[must_use]
     #[inline]
@@ -46,7 +65,7 @@ impl<R: io::Read> Decoder<R> {
         match self {
             Self::Stored(reader) => reader,
             Self::Zlib(reader) => reader.get_ref(),
-            Self::LZMA1(reader) => reader.get_ref(),
+            Self::LZMA1(reader) => reader.inner(),
         }
     }
 
@@ -58,7 +77,7 @@ impl<R: io::Read> Decoder<R> {
         match self {
             Self::Stored(reader) => reader,
             Self::Zlib(reader) => reader.get_mut(),
-            Self::LZMA1(reader) => reader.get_mut(),
+            Self::LZMA1(reader) => reader.inner_mut(),
         }
     }
 

@@ -131,6 +131,80 @@ impl fmt::Display for Checksum {
     }
 }
 
+impl Checksum {
+    /// Verify that the given data matches this checksum.
+    ///
+    /// Returns `Ok(())` if the checksum matches, or an error describing the mismatch.
+    #[cfg(feature = "extract")]
+    pub fn verify(&self, data: &[u8]) -> Result<(), crate::error::InnoError> {
+        use crate::error::InnoError;
+
+        let (expected, actual) = match self {
+            Self::Adler32(expected) => {
+                // Adler32: compute manually
+                let actual = adler32(data);
+                if *expected == actual {
+                    return Ok(());
+                }
+                (format!("Adler32({expected})"), format!("Adler32({actual})"))
+            }
+            Self::Crc32(expected) => {
+                let actual = crc32fast::hash(data);
+                if *expected == actual {
+                    return Ok(());
+                }
+                (format!("CRC32({expected})"), format!("CRC32({actual})"))
+            }
+            Self::MD5(expected) => {
+                use ::md5::Digest as _;
+                let actual_bytes: [u8; 16] = ::md5::Md5::digest(data).into();
+                if *expected.inner() == actual_bytes {
+                    return Ok(());
+                }
+                let actual = MD5::new(actual_bytes);
+                (format!("MD5({expected})"), format!("{actual}"))
+            }
+            Self::Sha1(expected) => {
+                use ::sha1::Digest as _;
+                let actual_bytes: [u8; 20] = ::sha1::Sha1::digest(data).into();
+                if *expected.inner() == actual_bytes {
+                    return Ok(());
+                }
+                let actual = Sha1::new(actual_bytes);
+                (format!("Sha1({expected})"), format!("{actual}"))
+            }
+            Self::Sha256(expected) => {
+                use ::sha2::Digest as _;
+                let actual_bytes: [u8; 32] = ::sha2::Sha256::digest(data).into();
+                if *expected.inner() == actual_bytes {
+                    return Ok(());
+                }
+                let actual = Sha256::new(actual_bytes);
+                (format!("Sha256({expected})"), format!("{actual}"))
+            }
+            Self::Check(_) => {
+                // Legacy check format -- skip verification
+                return Ok(());
+            }
+        };
+
+        Err(InnoError::ExtractChecksumMismatch { expected, actual })
+    }
+}
+
+/// Simple Adler-32 checksum computation.
+#[cfg(feature = "extract")]
+fn adler32(data: &[u8]) -> u32 {
+    const MOD_ADLER: u32 = 65521;
+    let mut a: u32 = 1;
+    let mut b: u32 = 0;
+    for &byte in data {
+        a = (a + byte as u32) % MOD_ADLER;
+        b = (b + a) % MOD_ADLER;
+    }
+    (b << 16) | a
+}
+
 impl Default for Checksum {
     fn default() -> Self {
         Self::Adler32(0)

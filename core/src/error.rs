@@ -27,6 +27,21 @@ pub enum InnoError {
         actual: u32,
         expected: u32,
     },
+    #[error("Encrypted installers are not supported for extraction")]
+    #[cfg(feature = "extract")]
+    EncryptedInstaller,
+    #[error("Unsupported compression for extraction: {0}")]
+    #[cfg(feature = "extract")]
+    UnsupportedCompression(String),
+    #[error("Invalid data chunk magic: expected [7A, 6C, 62, 1A], got {0:02X?}")]
+    #[cfg(feature = "extract")]
+    InvalidChunkMagic([u8; 4]),
+    #[error("Checksum mismatch for extracted file: expected {expected}, got {actual}")]
+    #[cfg(feature = "extract")]
+    ExtractChecksumMismatch { expected: String, actual: String },
+    #[error("File location index {index} is out of bounds (max: {max})")]
+    #[cfg(feature = "extract")]
+    FileLocationOutOfBounds { index: u32, max: usize },
     #[error(transparent)]
     Io(#[from] io::Error),
 }

@@ -7,7 +7,7 @@ use std::io;
 
 #[cfg(feature = "chrono")]
 use chrono::{DateTime, Utc};
-use compression_filter::CompressionFilter;
+pub use compression_filter::CompressionFilter;
 pub use file::File;
 pub use flags::FileLocationFlags;
 #[cfg(feature = "jiff")]

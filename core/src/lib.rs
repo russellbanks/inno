@@ -117,6 +117,8 @@ mod compression;
 mod encryption;
 pub mod entry;
 pub mod error;
+#[cfg(feature = "extract")]
+mod extract;
 pub mod header;
 mod loader;
 mod lzma_stream_header;

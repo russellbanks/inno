@@ -14,3 +14,54 @@ pub struct Chunk {
     pub(crate) compression: Compression,
     pub(crate) encryption: Encryption,
 }
+
+impl Chunk {
+    /// Returns the first disk slice containing this chunk.
+    #[must_use]
+    #[inline]
+    pub const fn first_slice(&self) -> u32 {
+        self.first_slice
+    }
+
+    /// Returns the last disk slice containing this chunk.
+    #[must_use]
+    #[inline]
+    pub const fn last_slice(&self) -> u32 {
+        self.last_slice
+    }
+
+    /// Returns the start offset of the chunk within the data stream.
+    #[must_use]
+    #[inline]
+    pub const fn start_offset(&self) -> u64 {
+        self.start_offset
+    }
+
+    /// Returns the sub-offset within the data stream.
+    #[must_use]
+    #[inline]
+    pub const fn sub_offset(&self) -> u64 {
+        self.sub_offset
+    }
+
+    /// Returns the original (compressed) size of the chunk.
+    #[must_use]
+    #[inline]
+    pub const fn original_size(&self) -> u64 {
+        self.original_size
+    }
+
+    /// Returns the compression method used for this chunk.
+    #[must_use]
+    #[inline]
+    pub const fn compression(&self) -> Compression {
+        self.compression
+    }
+
+    /// Returns the encryption method used for this chunk.
+    #[must_use]
+    #[inline]
+    pub const fn encryption(&self) -> Encryption {
+        self.encryption
+    }
+}

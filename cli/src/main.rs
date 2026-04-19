@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 mod components;
 mod constraint;
 mod delete;

@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 /*!
 Inno is a read-only parser for [Inno Setup](https://jrsoftware.org/isinfo.php) installers (.exe).
 It reads the installer structures so you can inspect an installer without actually running it.

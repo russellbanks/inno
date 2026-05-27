@@ -1,4 +1,6 @@
 use super::{Checksum, CompressionFilter};
+#[cfg(feature = "extract")]
+use crate::entry::checksum::ChecksumMismatchError;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct File {
@@ -42,5 +44,17 @@ impl File {
     #[inline]
     pub const fn compression_filter(&self) -> CompressionFilter {
         self.compression_filter
+    }
+
+    /// Validates that the given data matches the file's checksum.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ChecksumMismatchError`] if the calculated checksum does not match the
+    /// expected checksum.
+    #[cfg(feature = "extract")]
+    #[inline]
+    pub fn validate_checksum(&self, date: &[u8]) -> Result<(), ChecksumMismatchError> {
+        self.checksum().validate(date)
     }
 }

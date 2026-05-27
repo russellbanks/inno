@@ -64,4 +64,18 @@ impl Chunk {
     pub const fn encryption(&self) -> Encryption {
         self.encryption
     }
+
+    /// Returns `true` if the chunk is compressed.
+    #[must_use]
+    #[inline]
+    pub const fn is_compressed(&self) -> bool {
+        !self.compression().is_stored()
+    }
+
+    /// Returns `true` if this chunk is encrypted.
+    #[must_use]
+    #[inline]
+    pub const fn is_encrypted(self) -> bool {
+        !self.encryption().is_plaintext()
+    }
 }

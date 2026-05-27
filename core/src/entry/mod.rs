@@ -8,7 +8,7 @@ mod icon;
 mod ini;
 mod is_sig_key;
 mod language;
-mod location;
+pub mod location;
 mod message;
 mod permission;
 mod registry;

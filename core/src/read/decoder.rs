@@ -8,7 +8,7 @@ use crate::LzmaStreamHeader;
 pub enum Decoder<R: io::Read> {
     Stored(R),
     Zlib(ZlibDecoder<R>),
-    LZMA1(Box<LzmaReader<R>>),
+    Lzma1(Box<LzmaReader<R>>),
 }
 
 impl<R: io::Read> Decoder<R> {
@@ -21,7 +21,7 @@ impl<R: io::Read> Decoder<R> {
             header.dictionary_size(),
             None,
         )
-        .map(|reader| Self::LZMA1(Box::new(reader)))
+        .map(|reader| Self::Lzma1(Box::new(reader)))
     }
 
     /// Creates a new Zlib decoder from a reader.
@@ -54,7 +54,7 @@ impl<R: io::Read> Decoder<R> {
     #[must_use]
     #[inline]
     pub const fn is_lzma1(&self) -> bool {
-        matches!(self, Self::LZMA1(_))
+        matches!(self, Self::Lzma1(_))
     }
 
     /// Gets a reference to the underlying reader.
@@ -65,7 +65,7 @@ impl<R: io::Read> Decoder<R> {
         match self {
             Self::Stored(reader) => reader,
             Self::Zlib(reader) => reader.get_ref(),
-            Self::LZMA1(reader) => reader.inner(),
+            Self::Lzma1(reader) => reader.inner(),
         }
     }
 
@@ -77,7 +77,7 @@ impl<R: io::Read> Decoder<R> {
         match self {
             Self::Stored(reader) => reader,
             Self::Zlib(reader) => reader.get_mut(),
-            Self::LZMA1(reader) => reader.inner_mut(),
+            Self::Lzma1(reader) => reader.inner_mut(),
         }
     }
 
@@ -87,7 +87,7 @@ impl<R: io::Read> Decoder<R> {
         match self {
             Self::Stored(reader) => reader,
             Self::Zlib(reader) => reader.into_inner(),
-            Self::LZMA1(reader) => reader.into_inner(),
+            Self::Lzma1(reader) => reader.into_inner(),
         }
     }
 }
@@ -97,7 +97,7 @@ impl<R: io::Read> io::Read for Decoder<R> {
         match self {
             Self::Stored(reader) => reader.read(buf),
             Self::Zlib(reader) => reader.read(buf),
-            Self::LZMA1(reader) => reader.read(buf),
+            Self::Lzma1(reader) => reader.read(buf),
         }
     }
 }

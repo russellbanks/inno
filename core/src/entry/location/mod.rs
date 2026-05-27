@@ -1,6 +1,8 @@
 mod compression_filter;
 mod file;
 mod flags;
+
+pub(super) mod instruction;
 mod sign;
 
 use std::io;
@@ -16,7 +18,7 @@ use nt_time::{FileTime, dos_date_time};
 pub use sign::SignMode;
 use zerocopy::LE;
 
-pub use super::checksum::Checksum;
+use super::checksum::Checksum;
 use crate::{
     header::{Compression, Header, flag_reader::read_flags::read_flags},
     read::{
@@ -183,8 +185,8 @@ impl FileLocation {
     /// Returns the chunk.
     #[must_use]
     #[inline]
-    pub const fn chunk(&self) -> Chunk {
-        self.chunk
+    pub const fn chunk(&self) -> &Chunk {
+        &self.chunk
     }
 
     /// Returns the file object.

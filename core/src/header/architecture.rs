@@ -167,9 +167,9 @@ impl Architecture {
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum Expr {
     Flag(Architecture),
-    Not(Box<Expr>),
-    And(Box<Expr>, Box<Expr>),
-    Or(Box<Expr>, Box<Expr>),
+    Not(Box<Self>),
+    And(Box<Self>, Box<Self>),
+    Or(Box<Self>, Box<Self>),
 }
 
 impl Expr {

@@ -14,6 +14,8 @@ use zerocopy::LE;
 
 use super::{
     InnoError, ReadBytesExt,
+    entry::checksum::ChecksumMismatchError,
+    error::InnoResult,
     pe::{
         CoffHeader, DosHeader, OptionalHeader, SectionTable, Signature,
         resource::{ImageResourceDataEntry, ResourceDirectory, SectionReader},
@@ -97,7 +99,7 @@ impl SetupLoader {
 
     /// Attempts to find the setup loader via the legacy method, falling back to checking for a PE
     /// resource entry.
-    pub fn read_from<R>(mut src: R) -> Result<Self, InnoError>
+    pub fn read_from<R>(mut src: R) -> InnoResult<Self>
     where
         R: Read + Seek,
     {
@@ -105,7 +107,7 @@ impl SetupLoader {
     }
 
     /// Prior to Inno 5.1.5, the offset table is found by following a pointer at a constant offset.
-    fn read_legacy<R>(mut reader: R) -> Result<Self, InnoError>
+    fn read_legacy<R>(mut reader: R) -> InnoResult<Self>
     where
         R: Read + Seek,
     {
@@ -122,7 +124,7 @@ impl SetupLoader {
     }
 
     /// Since Inno 5.1.5, the offset table is stored as a PE resource entry
-    fn read_from_resource<R>(mut reader: R) -> Result<Self, InnoError>
+    fn read_from_resource<R>(mut reader: R) -> InnoResult<Self>
     where
         R: Read + Seek,
     {
@@ -193,7 +195,7 @@ impl SetupLoader {
         Self::new(reader.take(loader_data_entry.size().into()))
     }
 
-    fn new<R>(reader: R) -> Result<Self, InnoError>
+    fn new<R>(reader: R) -> InnoResult<Self>
     where
         R: Read,
     {
@@ -265,10 +267,9 @@ impl SetupLoader {
             let expected_checksum = checksum.get_mut().read_u32::<LE>()?;
             let actual_checksum = checksum.finalize();
             if actual_checksum != expected_checksum {
-                return Err(InnoError::CrcChecksumMismatch {
+                return Err(InnoError::ChecksumMismatch {
                     location: "Setup Loader",
-                    actual: actual_checksum,
-                    expected: expected_checksum,
+                    inner: ChecksumMismatchError::new_crc32(expected_checksum, actual_checksum),
                 });
             }
         }
@@ -373,5 +374,15 @@ impl SetupLoader {
     #[inline]
     pub const fn data_offset(&self) -> i64 {
         self.data_offset
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SetupLoader;
+
+    #[test]
+    fn size() {
+        assert_eq!(size_of::<SetupLoader>(), 80);
     }
 }

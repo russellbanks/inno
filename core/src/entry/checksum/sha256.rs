@@ -68,6 +68,18 @@ impl TryFrom<&[u8]> for Sha256 {
     }
 }
 
+impl PartialEq<[u8; SHA256_LEN]> for Sha256 {
+    fn eq(&self, other: &[u8; SHA256_LEN]) -> bool {
+        self.inner() == other
+    }
+}
+
+impl PartialEq<Sha256> for [u8; SHA256_LEN] {
+    fn eq(&self, other: &Sha256) -> bool {
+        self == other.inner()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{SHA256_LEN, Sha256};

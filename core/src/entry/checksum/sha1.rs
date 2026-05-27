@@ -65,6 +65,18 @@ impl TryFrom<&[u8]> for Sha1 {
     }
 }
 
+impl PartialEq<[u8; 20]> for Sha1 {
+    fn eq(&self, other: &[u8; 20]) -> bool {
+        self.inner() == other
+    }
+}
+
+impl PartialEq<Sha1> for [u8; 20] {
+    fn eq(&self, other: &Sha1) -> bool {
+        self == other.inner()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Sha1;

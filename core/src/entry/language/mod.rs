@@ -175,7 +175,7 @@ impl Language {
     /// Returns the dialog font.
     #[must_use]
     #[inline]
-    pub fn dialog_font(&self) -> &DialogFont {
+    pub const fn dialog_font(&self) -> &DialogFont {
         &self.dialog_font
     }
 

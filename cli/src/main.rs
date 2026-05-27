@@ -19,10 +19,15 @@ mod tabs;
 mod tasks;
 mod types;
 
-use std::{fs::File, io};
+use std::{
+    fs,
+    fs::File,
+    io,
+    io::{Read, Seek, Write},
+    path::PathBuf,
+};
 
 use anstream::println;
-use camino::Utf8PathBuf;
 use clap::Parser;
 use components::Components;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -31,6 +36,7 @@ use directories::Directories;
 use file_locations::FileLocations;
 use files::Files;
 use icons::Icons;
+use indicatif::{ProgressBar, ProgressStyle};
 use ini::IniFiles;
 use inno::Inno;
 use languages::Languages;
@@ -47,6 +53,7 @@ use ratatui::{
     text::Line,
     widgets::Widget,
 };
+use regex::Regex;
 use registries::RegistryEntries;
 use summary::Summary;
 use tabs::TabManager;
@@ -57,7 +64,7 @@ use types::Types;
 struct Args {
     /// The path to the Inno Setup installer executable
     #[arg()]
-    path: Utf8PathBuf,
+    path: PathBuf,
 
     /// Output a debug representation of the entire Inno Setup structure
     #[arg(short, long)]
@@ -65,44 +72,71 @@ struct Args {
 
     /// Extract files to the given directory
     #[arg(short, long)]
-    extract: Option<Utf8PathBuf>,
+    extract: Option<PathBuf>,
 
-    /// Only extract files matching these paths (relative to the install root).
-    /// Can be specified multiple times. If omitted, all files are extracted.
-    #[arg(short, long = "file", requires = "extract")]
-    files: Vec<String>,
+    #[arg(short, long)]
+    filter: Option<Regex>,
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     let mut file = File::open(&args.path)?;
-    let inno = Inno::new(&mut file)?;
+    let mut inno = Inno::new(&mut file)?;
 
     if args.debug {
-        println!("{inno:#?}");
+        println!("{:#?}", inno.inner);
         return Ok(());
     }
 
-    if let Some(dest) = &args.extract {
-        std::fs::create_dir_all(dest.as_std_path())?;
+    if let Some(ref destination) = args.extract {
+        fs::create_dir_all(destination)?;
 
-        if args.files.is_empty() {
-            let pb = indicatif::ProgressBar::new(inno.files().len() as u64);
-            pb.set_style(
-                indicatif::ProgressStyle::default_bar()
-                    .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} files ({eta})")
-                    .unwrap()
-                    .progress_chars("=>-"),
-            );
-            inno.extract_all_with_progress(&mut file, dest.as_std_path(), |done, _total| {
-                pb.set_position(done as u64);
-            })?;
-            pb.finish_with_message("done");
-            println!("Extracted all files to {dest}");
-        } else {
-            extract_matching(&inno, &mut file, dest.as_std_path(), &args.files)?;
+        let files = inno.filtered_files(|file_entry| {
+            args.filter.as_ref().is_none_or(|pattern| {
+                file_entry
+                    .file()
+                    .destination()
+                    .is_some_and(|file_destination| pattern.is_match(file_destination))
+            })
+        });
+
+        let pb = ProgressBar::new(files.len() as u64)
+            .with_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.cyan} [{bar:40.green/black}] {pos}/{len} {msg}")?
+                    .progress_chars("───"),
+            )
+            .with_message(format!("Extracting files to {}", destination.display()));
+
+        for res in files {
+            let (entry, data) = res?;
+
+            let Some(dest_path) = entry
+                .file()
+                .normalized_destination()
+                .filter(|dest| !dest.is_empty())
+            else {
+                pb.inc(1);
+                continue;
+            };
+
+            let full_path = destination.join(&dest_path);
+            pb.set_message(dest_path);
+
+            if let Some(parent) = full_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            let mut file = File::create(&full_path)?;
+            file.write_all(&data)?;
+
+            // Set the file's last modified time
+            file.set_modified(entry.file_location().file_time().into())?;
+            pb.inc(1);
         }
+
+        pb.finish();
+
         return Ok(());
     }
 
@@ -112,37 +146,13 @@ fn main() -> anyhow::Result<()> {
     app_result.map_err(anyhow::Error::from)
 }
 
-/// Extract only files whose destination path contains one of the given patterns.
-fn extract_matching(
-    inno: &Inno,
-    file: &mut File,
-    dest: &std::path::Path,
-    patterns: &[String],
-) -> anyhow::Result<()> {
-    let mut count = 0;
-    for (i, f) in inno.files().iter().enumerate() {
-        let Some(file_dest) = f.destination() else {
-            continue;
-        };
-        // Normalize the destination for matching
-        let normalized = file_dest.replace('\\', "/");
-        if patterns.iter().any(|p| normalized.contains(p.as_str())) {
-            inno.extract_file(file, i, dest)?;
-            println!("  {normalized}");
-            count += 1;
-        }
-    }
-    println!("Extracted {count} files to {}", dest.display());
-    Ok(())
-}
-
 struct App<'a> {
     tabs: TabManager<'a>,
     exit: bool,
 }
 
 impl<'a> App<'a> {
-    fn new(inno: &'a Inno) -> Self {
+    fn new<R: Read + Seek>(inno: &'a Inno<R>) -> Self {
         Self {
             tabs: TabManager::new(inno),
             exit: false,

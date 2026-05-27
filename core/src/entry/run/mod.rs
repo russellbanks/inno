@@ -94,35 +94,35 @@ impl RunEntry {
         Ok(run_entry)
     }
 
-    /// Returns the name of the RunEntry as a string slice.
+    /// Returns the name of the `RunEntry` as a string slice.
     #[must_use]
     #[inline]
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }
 
-    /// Returns parameters of the RunEntry as a string slice.
+    /// Returns parameters of the `RunEntry` as a string slice.
     #[must_use]
     #[inline]
     pub fn parameters(&self) -> Option<&str> {
         self.parameters.as_deref()
     }
 
-    /// Returns the working directory of the RunEntry as a string slice.
+    /// Returns the working directory of the `RunEntry` as a string slice.
     #[must_use]
     #[inline]
     pub fn working_directory(&self) -> Option<&str> {
         self.working_directory.as_deref()
     }
 
-    /// Returns the RunOnceId of the RunEntry as a string slice.
+    /// Returns the `RunOnceId` of the `RunEntry` as a string slice.
     #[must_use]
     #[inline]
     pub fn run_once_id(&self) -> Option<&str> {
         self.run_once_id.as_deref()
     }
 
-    /// Returns the status message of the RunEntry as a string slice.
+    /// Returns the status message of the `RunEntry` as a string slice.
     #[must_use]
     #[inline]
     pub fn status_message(&self) -> Option<&str> {
@@ -130,38 +130,38 @@ impl RunEntry {
     }
 
     /// Returns [verb](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-shellexecuteinfow)
-    /// of the RunEntry as a string slice.
+    /// of the `RunEntry` as a string slice.
     #[must_use]
     #[inline]
     pub fn verb(&self) -> Option<&str> {
         self.verb.as_deref()
     }
 
-    /// Returns description of the RunEntry as a string slice.
+    /// Returns description of the `RunEntry` as a string slice.
     #[must_use]
     #[inline]
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
 
-    /// Returns show command of the RunEntry as a string slice.
+    /// Returns show command of the `RunEntry` as a string slice.
     #[must_use]
     #[inline]
-    pub fn show_command(&self) -> i32 {
+    pub const fn show_command(&self) -> i32 {
         self.show_command
     }
 
-    /// Returns wait condition of the RunEntry as a string slice.
+    /// Returns wait condition of the `RunEntry` as a string slice.
     #[must_use]
     #[inline]
-    pub fn wait_condition(&self) -> WaitCondition {
+    pub const fn wait_condition(&self) -> WaitCondition {
         self.wait_condition
     }
 
-    /// Returns options of the RunEntry as a string slice.
+    /// Returns options of the `RunEntry` as a string slice.
     #[must_use]
     #[inline]
-    pub fn options(&self) -> RunFlags {
+    pub const fn options(&self) -> RunFlags {
         self.options
     }
 }

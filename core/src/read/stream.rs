@@ -5,6 +5,7 @@ use zerocopy::LE;
 use crate::{
     ReadBytesExt,
     compression::Compression,
+    entry::checksum::ChecksumMismatchError,
     error::InnoError,
     lzma_stream_header::LzmaStreamHeader,
     read::{
@@ -83,10 +84,9 @@ impl<R: Read> InnoStreamReader<R> {
         if actual_crc32 != expected_crc32 {
             return Err(Error::new(
                 ErrorKind::InvalidData,
-                InnoError::CrcChecksumMismatch {
+                InnoError::ChecksumMismatch {
                     location: "Inno stream header",
-                    actual: actual_crc32,
-                    expected: expected_crc32,
+                    inner: ChecksumMismatchError::new_crc32(expected_crc32, actual_crc32),
                 },
             ));
         }

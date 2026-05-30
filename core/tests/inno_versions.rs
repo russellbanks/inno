@@ -149,7 +149,7 @@ fn inno_6_6_0() -> Result<(), Box<dyn Error>> {
     assert_eq!(inno.version(), InnoVersion::new(6, 6, 0, 0));
     assert!(inno.version().is_unicode());
 
-    assert_eq!(inno.header.wizard_image_opacity(), None);
+    assert_eq!(inno.header().wizard_image_opacity(), None);
 
     assert!(!inno.wizard().images_dynamic_dark().is_empty());
     assert!(!inno.wizard().small_images_dynamic_dark().is_empty());
@@ -167,7 +167,7 @@ fn inno_6_6_1() -> Result<(), Box<dyn Error>> {
     assert_eq!(inno.version(), InnoVersion::new(6, 6, 1, 0));
     assert!(inno.version().is_unicode());
 
-    assert_eq!(inno.header.wizard_image_opacity(), Some(u8::MAX));
+    assert_eq!(inno.header().wizard_image_opacity(), Some(u8::MAX));
 
     Ok(())
 }
@@ -182,13 +182,13 @@ fn inno_6_7_0() -> Result<(), Box<dyn Error>> {
     assert!(inno.version().is_unicode());
 
     assert_eq!(
-        inno.header.use_previous_app_dir(),
+        inno.header().use_previous_app_dir(),
         Some("not PortableCheck")
     );
-    assert_eq!(inno.header.use_previous_group(), Some("yes"));
-    assert_eq!(inno.header.use_previous_setup_type(), Some("yes"));
-    assert_eq!(inno.header.use_previous_tasks(), Some("yes"));
-    assert_eq!(inno.header.use_previous_user_info(), Some("yes"));
+    assert_eq!(inno.header().use_previous_group(), Some("yes"));
+    assert_eq!(inno.header().use_previous_setup_type(), Some("yes"));
+    assert_eq!(inno.header().use_previous_tasks(), Some("yes"));
+    assert_eq!(inno.header().use_previous_user_info(), Some("yes"));
 
     Ok(())
 }

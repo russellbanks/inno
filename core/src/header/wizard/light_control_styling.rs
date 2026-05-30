@@ -2,7 +2,7 @@ use std::{fmt, io};
 
 use zerocopy::{Immutable, KnownLayout, TryFromBytes, ValidityError, try_transmute};
 
-/// https://github.com/jrsoftware/issrc/blob/is-6_7_0/Projects/Src/Shared.Struct.pas#L98
+/// <https://github.com/jrsoftware/issrc/blob/is-6_7_3/Projects/Src/Shared.Struct.pas#L98>
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Immutable, KnownLayout, TryFromBytes)]
 #[repr(u8)]
 pub enum LightControlStyling {
@@ -25,7 +25,7 @@ impl LightControlStyling {
     }
 
     #[must_use]
-    pub const fn as_str(&self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Self::All => "All",
             Self::AllButButtons => "All but buttons",

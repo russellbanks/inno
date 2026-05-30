@@ -19,10 +19,15 @@ mod tabs;
 mod tasks;
 mod types;
 
-use std::{fs::File, io};
+use std::{
+    fs,
+    fs::File,
+    io,
+    io::{Read, Seek, Write},
+    path::PathBuf,
+};
 
 use anstream::println;
-use camino::Utf8PathBuf;
 use clap::Parser;
 use components::Components;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -31,6 +36,7 @@ use directories::Directories;
 use file_locations::FileLocations;
 use files::Files;
 use icons::Icons;
+use indicatif::{ProgressBar, ProgressStyle};
 use ini::IniFiles;
 use inno::Inno;
 use languages::Languages;
@@ -47,6 +53,7 @@ use ratatui::{
     text::Line,
     widgets::Widget,
 };
+use regex::Regex;
 use registries::RegistryEntries;
 use summary::Summary;
 use tabs::TabManager;
@@ -57,21 +64,79 @@ use types::Types;
 struct Args {
     /// The path to the Inno Setup installer executable
     #[arg()]
-    path: Utf8PathBuf,
+    path: PathBuf,
 
     /// Output a debug representation of the entire Inno Setup structure
     #[arg(short, long)]
     debug: bool,
+
+    /// Extract files to the given directory
+    #[arg(short, long)]
+    extract: Option<PathBuf>,
+
+    #[arg(short, long)]
+    filter: Option<Regex>,
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    let file = File::open(&args.path)?;
-    let inno = Inno::new(file)?;
+    let mut file = File::open(&args.path)?;
+    let mut inno = Inno::new(&mut file)?;
 
     if args.debug {
-        println!("{inno:#?}");
+        println!("{:#?}", inno.inner);
+        return Ok(());
+    }
+
+    if let Some(ref destination) = args.extract {
+        fs::create_dir_all(destination)?;
+
+        let files = inno.filtered_files(|file_entry| {
+            args.filter.as_ref().is_none_or(|pattern| {
+                file_entry
+                    .file()
+                    .destination()
+                    .is_some_and(|file_destination| pattern.is_match(file_destination))
+            })
+        });
+
+        let pb = ProgressBar::new(files.len() as u64)
+            .with_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.cyan} [{bar:40.green/black}] {pos}/{len} {msg}")?
+                    .progress_chars("───"),
+            )
+            .with_message(format!("Extracting files to {}", destination.display()));
+
+        for res in files {
+            let (entry, data) = res?;
+
+            let Some(dest_path) = entry
+                .file()
+                .normalized_destination()
+                .filter(|dest| !dest.is_empty())
+            else {
+                pb.inc(1);
+                continue;
+            };
+
+            let full_path = destination.join(&dest_path);
+            pb.set_message(dest_path);
+
+            if let Some(parent) = full_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            let mut file = File::create(&full_path)?;
+            file.write_all(&data)?;
+
+            // Set the file's last modified time
+            file.set_modified(entry.file_location().file_time().into())?;
+            pb.inc(1);
+        }
+
+        pb.finish();
+
         return Ok(());
     }
 
@@ -87,7 +152,7 @@ struct App<'a> {
 }
 
 impl<'a> App<'a> {
-    fn new(inno: &'a Inno) -> Self {
+    fn new<R: Read + Seek>(inno: &'a Inno<R>) -> Self {
         Self {
             tabs: TabManager::new(inno),
             exit: false,

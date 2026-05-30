@@ -2,9 +2,9 @@ use std::{cmp::min, io};
 
 use zerocopy::LE;
 
-use crate::{ReadBytesExt, error::InnoError};
+use crate::{ReadBytesExt, entry::checksum::ChecksumMismatchError, error::InnoError};
 
-pub const INNO_BLOCK_SIZE: u16 = 1 << 12;
+pub const INNO_BLOCK_SIZE: u16 = 4 * 1024;
 
 pub struct InnoBlockReader<R: io::Read> {
     /// The underlying reader.
@@ -111,10 +111,9 @@ impl<R: io::Read> InnoBlockReader<R> {
         if actual_crc32 != block_crc32 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                InnoError::CrcChecksumMismatch {
+                InnoError::ChecksumMismatch {
                     location: "Inno block",
-                    actual: actual_crc32,
-                    expected: block_crc32,
+                    inner: ChecksumMismatchError::new_adler32(block_crc32, actual_crc32),
                 },
             ));
         }

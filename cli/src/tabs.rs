@@ -1,3 +1,5 @@
+use std::io::{Read, Seek};
+
 use inno::Inno;
 use ratatui::{
     buffer::Buffer,
@@ -17,8 +19,8 @@ pub struct TabManager<'a> {
 impl<'a> TabManager<'a> {
     /// Creates a new View Tab manager.
     #[must_use]
-    pub fn new(inno: &'a Inno) -> Self {
-        let mut pages = vec![Page::Header(Summary::new(&inno.header, inno.version()))];
+    pub fn new<R: Read + Seek>(inno: &'a Inno<R>) -> Self {
+        let mut pages = vec![Page::Header(Summary::new(inno.header(), inno.version()))];
 
         let languages = inno.languages();
         if !languages.is_empty() {
@@ -56,7 +58,7 @@ impl<'a> TabManager<'a> {
             pages.push(directories.into());
         }
 
-        let files = inno.files();
+        let files = inno.file_entries();
         if !files.is_empty() {
             pages.push(files.into());
         }
@@ -66,7 +68,7 @@ impl<'a> TabManager<'a> {
             pages.push(file_locations.into());
         }
 
-        let icons = inno.icons();
+        let icons = inno.icon_entries();
         if !icons.is_empty() {
             pages.push(icons.into());
         }

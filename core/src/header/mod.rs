@@ -32,7 +32,7 @@ use zerocopy::LE;
 
 use super::{InnoVersion, WindowsVersionRange, read::ReadBytesExt};
 use crate::{
-    encryption::EncryptionHeader, entry::Checksum, error::InnoError,
+    encryption::EncryptionHeader, entry::Checksum, error::InnoResult,
     header::wizard::LightControlStyling, string::PascalString,
 };
 
@@ -116,7 +116,7 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn read<R>(mut reader: R, version: InnoVersion) -> Result<Self, InnoError>
+    pub fn read<R>(mut reader: R, version: InnoVersion) -> InnoResult<Self>
     where
         R: io::Read,
     {

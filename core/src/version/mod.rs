@@ -5,7 +5,7 @@ use std::{cmp::Ordering, fmt, io};
 
 pub use variant::VersionVariant;
 
-use crate::error::InnoError;
+use crate::error::{InnoError, InnoResult};
 
 #[derive(Clone, Copy, Debug, Default, Eq)]
 pub struct InnoVersion {
@@ -89,7 +89,7 @@ impl InnoVersion {
         }
     }
 
-    pub fn read<R>(mut reader: R) -> Result<Self, InnoError>
+    pub fn read<R>(mut reader: R) -> InnoResult<Self>
     where
         R: io::Read,
     {

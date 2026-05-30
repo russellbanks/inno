@@ -5,9 +5,9 @@ use zerocopy::{FromBytes, Immutable, KnownLayout};
 
 #[derive(Clone, Copy, Eq, PartialEq, FromBytes, Immutable, KnownLayout)]
 #[repr(transparent)]
-pub struct MD5([u8; 16]);
+pub struct Md5([u8; 16]);
 
-impl MD5 {
+impl Md5 {
     /// Creates a new MD5 from an array of 16 bytes.
     #[must_use]
     #[inline]
@@ -30,19 +30,19 @@ impl MD5 {
     }
 }
 
-impl AsRef<[u8]> for MD5 {
+impl AsRef<[u8]> for Md5 {
     fn as_ref(&self) -> &[u8] {
         &self.0
     }
 }
 
-impl fmt::Debug for MD5 {
+impl fmt::Debug for Md5 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
     }
 }
 
-impl fmt::Display for MD5 {
+impl fmt::Display for Md5 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for byte in self.0 {
             write!(f, "{byte:02X}")?;
@@ -51,13 +51,13 @@ impl fmt::Display for MD5 {
     }
 }
 
-impl From<[u8; 16]> for MD5 {
+impl From<[u8; 16]> for Md5 {
     fn from(array: [u8; 16]) -> Self {
         Self::new(array)
     }
 }
 
-impl TryFrom<&[u8]> for MD5 {
+impl TryFrom<&[u8]> for Md5 {
     type Error = TryFromSliceError;
 
     fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
@@ -65,12 +65,24 @@ impl TryFrom<&[u8]> for MD5 {
     }
 }
 
+impl PartialEq<[u8; 16]> for Md5 {
+    fn eq(&self, other: &[u8; 16]) -> bool {
+        self.inner() == other
+    }
+}
+
+impl PartialEq<Md5> for [u8; 16] {
+    fn eq(&self, other: &Md5) -> bool {
+        self == other.inner()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::MD5;
+    use super::Md5;
 
     #[test]
     fn size() {
-        assert_eq!(size_of::<MD5>(), 16);
+        assert_eq!(size_of::<Md5>(), 16);
     }
 }

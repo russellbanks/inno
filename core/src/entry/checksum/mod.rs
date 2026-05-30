@@ -1,3 +1,4 @@
+mod error;
 mod md5;
 mod sha1;
 mod sha256;
@@ -5,7 +6,8 @@ mod sha256;
 use core::fmt;
 use std::io;
 
-pub use md5::MD5;
+pub use error::ChecksumMismatchError;
+pub use md5::Md5;
 pub use sha1::Sha1;
 pub use sha256::Sha256;
 use zerocopy::LE;
@@ -16,18 +18,32 @@ use crate::read::ReadBytesExt;
 pub enum Checksum {
     Adler32(u32),
     Crc32(u32),
-    MD5(MD5),
+    MD5(Md5),
     Sha1(Sha1),
     Sha256(Sha256),
     Check([u8; 4]),
 }
 
 impl Checksum {
+    /// Creates a new Adler32 checksum from a `u32`.
+    #[must_use]
+    #[inline]
+    pub const fn new_adler32(adler32: u32) -> Self {
+        Self::Adler32(adler32)
+    }
+
+    /// Creates a new CRC-32 checksum from a `u32`.
+    #[must_use]
+    #[inline]
+    pub const fn new_crc32(crc32: u32) -> Self {
+        Self::Crc32(crc32)
+    }
+
     /// Creates a new MD5 checksum from an array of 16 bytes.
     #[must_use]
     #[inline]
     pub const fn new_md5(md5: [u8; 16]) -> Self {
-        Self::MD5(MD5::new(md5))
+        Self::MD5(Md5::new(md5))
     }
 
     /// Creates a new SHA-1 checksum from an array of 20 bytes.
@@ -49,14 +65,14 @@ impl Checksum {
         reader.read_u32::<LE>().map(Self::Adler32)
     }
 
-    /// Reads a CRC32 from the reader.
+    /// Reads a CRC-32 from the reader.
     pub fn read_crc32<R: io::Read>(mut reader: R) -> io::Result<Self> {
         reader.read_u32::<LE>().map(Self::Crc32)
     }
 
     /// Reads an MD5 from the reader.
     pub fn read_md5<R: io::Read>(mut reader: R) -> io::Result<Self> {
-        reader.read_t::<MD5>().map(Self::MD5)
+        reader.read_t::<Md5>().map(Self::MD5)
     }
 
     /// Reads a SHA-1 from the reader.
@@ -128,6 +144,70 @@ impl fmt::Display for Checksum {
             Self::Sha256(sha256) => write!(f, "{sha256}"),
             Self::Check(check) => write!(f, "{:?}", u32::from_le_bytes(*check)),
         }
+    }
+}
+
+impl Checksum {
+    /// Verify that the given data matches this checksum.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ChecksumMismatchError`] if the calculated checksum does not match the
+    /// expected checksum.
+    #[cfg(feature = "extract")]
+    pub fn validate(&self, data: &[u8]) -> Result<(), ChecksumMismatchError> {
+        match self {
+            Self::Adler32(expected) => {
+                let actual = simd_adler32::adler32(&data);
+                if *expected != actual {
+                    return Err(ChecksumMismatchError::new_adler32(*expected, actual));
+                }
+            }
+            Self::Crc32(expected) => {
+                let actual = crc32fast::hash(data);
+                if *expected != actual {
+                    return Err(ChecksumMismatchError::new_crc32(*expected, actual));
+                }
+            }
+            Self::MD5(expected) => {
+                use ::md5::{Digest, Md5};
+
+                let actual = Md5::digest(data).0;
+                if *expected != actual {
+                    return Err(ChecksumMismatchError::new_md5(
+                        expected.into_inner(),
+                        actual,
+                    ));
+                }
+            }
+            Self::Sha1(expected) => {
+                use ::sha1::{Digest, Sha1};
+
+                let actual = Sha1::digest(data).0;
+                if *expected != actual {
+                    return Err(ChecksumMismatchError::new_sha1(
+                        expected.into_inner(),
+                        actual,
+                    ));
+                }
+            }
+            Self::Sha256(expected) => {
+                use sha2::{Digest, Sha256};
+
+                let actual = Sha256::digest(data).0;
+                if *expected != actual {
+                    return Err(ChecksumMismatchError::new_sha256(
+                        expected.into_inner(),
+                        actual,
+                    ));
+                }
+            }
+            Self::Check(_) => {
+                // Legacy check format - skip verification
+            }
+        }
+
+        Ok(())
     }
 }
 

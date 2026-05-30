@@ -12,7 +12,8 @@ use zerocopy::LE;
 
 use crate::{
     encryption::reader::EncryptionHeaderReader,
-    error::InnoError,
+    entry::checksum::ChecksumMismatchError,
+    error::{InnoError, InnoResult},
     read::{ReadBytesExt, crc32::Crc32Reader},
     version::InnoVersion,
 };
@@ -29,7 +30,7 @@ pub struct EncryptionHeader {
 }
 
 impl EncryptionHeader {
-    pub fn read<R>(mut reader: R, version: InnoVersion) -> Result<Self, InnoError>
+    pub fn read<R>(mut reader: R, version: InnoVersion) -> InnoResult<Self>
     where
         R: Read,
     {
@@ -65,13 +66,12 @@ impl EncryptionHeader {
             encryption_header.password_test = reader.read_u32::<LE>()?;
         }
 
-        // Check if the expected CRC32 matches the calculated CRC32.
+        // Check if the expected CRC-32 matches the calculated CRC-32.
         let actual_crc32 = reader.finalize();
-        if actual_crc32 != crc32 {
-            return Err(InnoError::CrcChecksumMismatch {
+        if crc32 != actual_crc32 {
+            return Err(InnoError::ChecksumMismatch {
                 location: "Encryption header",
-                actual: actual_crc32,
-                expected: crc32,
+                inner: ChecksumMismatchError::new_adler32(crc32, actual_crc32),
             });
         }
 

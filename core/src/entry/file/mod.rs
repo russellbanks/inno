@@ -158,6 +158,30 @@ impl File {
         self.destination.as_deref()
     }
 
+    /// Returns the destination file path as an owned [`String`], with any `{...}\`
+    /// prefix removed, and backslashes normalized to forward slashes.
+    ///
+    /// # Examples
+    ///
+    /// - `{app}\bin\foo.dll` -> `bin/foo.dll`
+    /// - `{sys}\bar.dll` -> `bar.dll`
+    /// - `plain\path.txt` -> `plain/path.txt`
+    pub fn normalized_destination(&self) -> Option<String> {
+        let mut destination = self.destination()?;
+
+        if destination.starts_with('{') {
+            // Strip the `{...}\` or `{.../` prefix
+            destination = destination.find('}').map_or(destination, |index| {
+                let rest = &destination[index + 1..];
+                rest.strip_prefix('\\')
+                    .or_else(|| rest.strip_prefix('/'))
+                    .unwrap_or(rest)
+            })
+        }
+
+        Some(destination.replace('\\', "/"))
+    }
+
     /// Returns the install font name as a string slice.
     #[must_use]
     #[inline]
@@ -235,5 +259,26 @@ impl Default for File {
             flags: FileFlags::default(),
             r#type: FileType::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::File;
+
+    #[rstest]
+    #[case::app(r"{app}\bin\foo.dll", "bin/foo.dll")]
+    #[case::sys(r"{sys}\bar.dll", "bar.dll")]
+    #[case::plain(r"plain\path.txt", "plain/path.txt")]
+    #[case::empty_after_prefix(r"{app}", "")]
+    fn resolve_path(#[case] destination: &str, #[case] expected: &str) {
+        let file = File {
+            destination: Some(destination.into()),
+            ..File::default()
+        };
+
+        assert_eq!(file.normalized_destination().as_deref(), Some(expected));
     }
 }

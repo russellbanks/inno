@@ -17,7 +17,7 @@ bitflags! {
         const SIGN = 1 << 9;
         const SIGN_ONCE = 1 << 10;
 
-        // ~~~ Obsolete flags~~~
+        // ~~~ Obsolete flags ~~~
 
         const BZIPPED = 1 << 15;
     }

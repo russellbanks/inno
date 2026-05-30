@@ -2,7 +2,9 @@ use std::{fmt, io};
 
 use thiserror::Error;
 
-use super::{Inno, InnoVersion};
+use super::{InnoVersion, MAX_SUPPORTED_VERSION, entry::checksum::ChecksumMismatchError};
+
+pub type InnoResult<T> = Result<T, InnoError>;
 
 #[derive(Error, Debug)]
 pub enum InnoError {
@@ -12,7 +14,7 @@ pub enum InnoError {
     UnexpectedExtraData(HeaderStream),
     #[error(
         "Inno Setup version {0} is newer than the maximum supported version {max_version}",
-        max_version = Inno::MAX_SUPPORTED_VERSION
+        max_version = MAX_SUPPORTED_VERSION
     )]
     UnsupportedVersion(InnoVersion),
     #[error("Unknown Inno setup version: {0}")]
@@ -20,13 +22,28 @@ pub enum InnoError {
     #[error("Unknown Inno Setup loader signature: {0:?}")]
     UnknownLoaderSignature([u8; 12]),
     #[error(
-        "Inno CRC32 checksum mismatch reading {location}. Expected {expected} but calculated {actual}"
+        "Inno Setup checksum mismatch reading {location}. Expected {} but calculated {}",
+        inner.expected(),
+        inner.actual()
     )]
-    CrcChecksumMismatch {
+    ChecksumMismatch {
         location: &'static str,
-        actual: u32,
-        expected: u32,
+        inner: ChecksumMismatchError,
     },
+    #[error("Unsupported {0} compression")]
+    UnsupportedCompression(super::header::Compression),
+    #[cfg(feature = "extract")]
+    #[error("Encrypted installers are not supported for extraction")]
+    Encrypted,
+    #[cfg(feature = "extract")]
+    #[error(
+        "Invalid data chunk magic: expected {magic}, got {0:02X?}",
+        magic=super::read::data_chunk::ZlibID::Magic
+    )]
+    InvalidChunkMagic([u8; 4]),
+    #[cfg(feature = "extract")]
+    #[error("File location index {index} is out of bounds (max: {max})")]
+    FileLocationOutOfBounds { index: u32, max: usize },
     #[error(transparent)]
     Io(#[from] io::Error),
 }

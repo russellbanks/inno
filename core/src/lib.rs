@@ -21,15 +21,15 @@ Then, open an installer and inspect its contents:
 
 ```no_run
 use std::fs::File;
-use inno::Inno;
+use inno::{Inno, error::InnoResult};
 
-fn main() -> Result<(), inno::error::InnoError> {
+fn main() -> InnoResult<()> {
     let file = File::open("path/to/setup.exe")?;
     let inno = Inno::new(file)?;
 
     println!("Inno Setup version: {}", inno.version());
 
-    if let Some(name) = inno.header.app_name() {
+    if let Some(name) = inno.header().app_name() {
         println!("App name: {name}");
     }
 
@@ -115,6 +115,8 @@ mod encryption;
 pub mod entry;
 pub mod error;
 pub mod header;
+#[cfg(feature = "extract")]
+mod iterator;
 mod loader;
 mod lzma_stream_header;
 mod pe;
@@ -134,8 +136,10 @@ use entry::{
     Component, DeleteEntry, Directory, File, FileLocation, ISSigKey, Icon, Ini, Language, Message,
     MessageEntry, Permission, RegistryEntry, RunEntry, Task, Type,
 };
-use error::{HeaderStream, InnoError};
+use error::{HeaderStream, InnoError, InnoResult};
 pub use header::Header;
+#[cfg(feature = "extract")]
+use iterator::{ExtractEntry, FilesIterator, FilteredFilesIterator};
 use itertools::Itertools;
 use loader::SetupLoader;
 use lzma_stream_header::LzmaStreamHeader;
@@ -144,8 +148,14 @@ use version::{InnoVersion, windows_version::WindowsVersionRange};
 pub use wizard::Wizard;
 pub use zerocopy;
 
+/// The maximum supported Inno Version by this library.
+///
+/// Inno Setup versions newer than this version are likely to have breaking changes where the
+/// changes have not yet been implemented into this library.
+pub const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(6, 7, u8::MAX, u8::MAX);
+
 #[derive(Debug)]
-pub struct Inno {
+pub struct InnoInner {
     pub setup_loader: SetupLoader,
     version: InnoVersion,
     encryption_header: Option<EncryptionHeader>,
@@ -170,58 +180,12 @@ pub struct Inno {
     file_locations: Vec<FileLocation>,
 }
 
-impl Inno {
-    /// The maximum supported Inno Version by this library.
-    ///
-    /// Inno Setup versions newer than this version are likely to have breaking changes where the
-    /// changes have not yet been implemented into this library.
-    pub const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(6, 7, u8::MAX, u8::MAX);
-
-    pub fn new<R>(mut reader: R) -> Result<Self, InnoError>
-    where
-        R: Read + Seek,
-    {
-        let setup_loader =
-            SetupLoader::read_from(&mut reader).map_err(|_| InnoError::NotInnoFile)?;
-
-        // Seek to Inno header
-        reader.seek(SeekFrom::Start(setup_loader.header_offset().unsigned_abs()))?;
-
-        let mut inno_version = InnoVersion::read(&mut reader)?;
-
-        if inno_version > Self::MAX_SUPPORTED_VERSION {
-            return Err(InnoError::UnsupportedVersion(inno_version));
-        }
-
-        // Inno Setup sometimes didn't increment the version number between versions with breaking
-        // changes. If the version is ambiguous, try reading using successive candidate versions
-        // until one succeeds.
-        if let Some(mut versions_to_try) = inno_version.ambiguous_candidates().map(Vec::into_iter) {
-            let position = reader.stream_position()?;
-
-            loop {
-                match Self::read_stream(&mut reader, setup_loader, inno_version) {
-                    Ok(inno) => break Ok(inno),
-                    Err(err) => {
-                        if let Some(next) = versions_to_try.next() {
-                            inno_version = next;
-                            reader.seek(SeekFrom::Start(position))?;
-                        } else {
-                            break Err(err);
-                        }
-                    }
-                }
-            }
-        } else {
-            Self::read_stream(&mut reader, setup_loader, inno_version)
-        }
-    }
-
+impl InnoInner {
     fn read_stream<R: Read + Seek>(
         mut reader: R,
         setup_loader: SetupLoader,
         inno_version: InnoVersion,
-    ) -> Result<Self, InnoError> {
+    ) -> InnoResult<Self> {
         let encryption_header = if inno_version >= 6.5 {
             Some(EncryptionHeader::read(&mut reader, inno_version)?)
         } else {
@@ -359,20 +323,78 @@ impl Inno {
             file_locations,
         })
     }
+}
+
+pub struct Inno<R: Read + Seek> {
+    reader: R,
+    pub inner: InnoInner,
+}
+
+impl<R: Read + Seek> Inno<R> {
+    pub fn new(mut reader: R) -> InnoResult<Self> {
+        let setup_loader =
+            SetupLoader::read_from(&mut reader).map_err(|_| InnoError::NotInnoFile)?;
+
+        // Seek to Inno header
+        reader.seek(SeekFrom::Start(setup_loader.header_offset().unsigned_abs()))?;
+
+        let mut inno_version = InnoVersion::read(&mut reader)?;
+
+        if inno_version > MAX_SUPPORTED_VERSION {
+            return Err(InnoError::UnsupportedVersion(inno_version));
+        }
+
+        // Inno Setup sometimes didn't increment the version number between versions with breaking
+        // changes. If the version is ambiguous, try reading using successive candidate versions
+        // until one succeeds.
+        let inner = if let Some(mut versions_to_try) =
+            inno_version.ambiguous_candidates().map(Vec::into_iter)
+        {
+            let position = reader.stream_position()?;
+
+            loop {
+                match InnoInner::read_stream(&mut reader, setup_loader, inno_version) {
+                    Ok(inno) => break Ok(inno),
+                    Err(err) => {
+                        if let Some(next) = versions_to_try.next() {
+                            inno_version = next;
+                            reader.seek(SeekFrom::Start(position))?;
+                        } else {
+                            break Err(err);
+                        }
+                    }
+                }
+            }
+        } else {
+            InnoInner::read_stream(&mut reader, setup_loader, inno_version)
+        }?;
+
+        Ok(Self { reader, inner })
+    }
+
+    #[inline]
+    pub const fn setup_loader(&self) -> &SetupLoader {
+        &self.inner.setup_loader
+    }
+
+    pub const fn header(&self) -> &Header {
+        &self.inner.header
+    }
 
     /// Returns the Inno Setup version.
     #[must_use]
     #[inline]
     pub const fn version(&self) -> InnoVersion {
-        self.version
+        self.inner.version
     }
 
     /// Returns the encryption header, if any.
     #[must_use]
     pub fn encryption_header(&self) -> Option<&EncryptionHeader> {
-        self.encryption_header
+        self.inner
+            .encryption_header
             .as_ref()
-            .or_else(|| self.header.encryption_header())
+            .or_else(|| self.inner.header.encryption_header())
     }
 
     /// Returns the primary language of the installer, if available.
@@ -386,18 +408,19 @@ impl Inno {
     #[must_use]
     #[inline]
     pub const fn languages(&self) -> &[Language] {
-        self.languages.as_slice()
+        self.inner.languages.as_slice()
     }
 
     /// Returns the message entries as a slice.
     #[must_use]
     #[inline]
     pub const fn message_entries(&self) -> &[MessageEntry] {
-        self.messages.as_slice()
+        self.inner.messages.as_slice()
     }
 
     pub fn messages(&self) -> impl Iterator<Item = Message<'_, '_>> {
-        self.messages
+        self.inner
+            .messages
             .iter()
             .map(|message| Message::new(message, self.languages()))
     }
@@ -406,111 +429,136 @@ impl Inno {
     #[must_use]
     #[inline]
     pub const fn permissions(&self) -> &[Permission] {
-        self.permissions.as_slice()
+        self.inner.permissions.as_slice()
     }
 
     /// Returns the type entries as a slice.
     #[must_use]
     #[inline]
     pub const fn type_entries(&self) -> &[Type] {
-        self.type_entries.as_slice()
+        self.inner.type_entries.as_slice()
     }
 
     /// Returns the component entries as a slice.
     #[must_use]
     #[inline]
     pub const fn components(&self) -> &[Component] {
-        self.components.as_slice()
+        self.inner.components.as_slice()
     }
 
     /// Returns the task entries as a slice.
     #[must_use]
     #[inline]
     pub const fn tasks(&self) -> &[Task] {
-        self.tasks.as_slice()
+        self.inner.tasks.as_slice()
     }
 
     /// Returns the directory entries as a slice.
     #[must_use]
     #[inline]
     pub const fn directories(&self) -> &[Directory] {
-        self.directories.as_slice()
+        self.inner.directories.as_slice()
     }
 
     /// Returns the IS Sig Key entries as a slice.
     #[must_use]
     #[inline]
     pub const fn is_sig_keys(&self) -> &[ISSigKey] {
-        self.is_sig_keys.as_slice()
+        self.inner.is_sig_keys.as_slice()
     }
 
     /// Returns the file entries as a slice.
     #[must_use]
     #[inline]
-    pub const fn files(&self) -> &[File] {
-        self.files.as_slice()
+    pub const fn file_entries(&self) -> &[File] {
+        self.inner.files.as_slice()
     }
 
     /// Returns the icon entries as a slice.
     #[must_use]
     #[inline]
-    pub const fn icons(&self) -> &[Icon] {
-        self.icons.as_slice()
+    pub const fn icon_entries(&self) -> &[Icon] {
+        self.inner.icons.as_slice()
     }
 
     /// Returns the ini entries as a slice.
     #[must_use]
     #[inline]
     pub const fn ini_entries(&self) -> &[Ini] {
-        self.ini_entries.as_slice()
+        self.inner.ini_entries.as_slice()
     }
 
     /// Returns the registry entries a slice.
     #[must_use]
     #[inline]
     pub const fn registry_entries(&self) -> &[RegistryEntry] {
-        self.registry_entries.as_slice()
+        self.inner.registry_entries.as_slice()
     }
 
     /// Returns the delete entries as a slice.
     #[must_use]
     #[inline]
     pub const fn delete_entries(&self) -> &[DeleteEntry] {
-        self.delete_entries.as_slice()
+        self.inner.delete_entries.as_slice()
     }
 
     /// Returns the uninstall delete entries as a slice.
     #[must_use]
     #[inline]
     pub const fn uninstall_delete_entries(&self) -> &[DeleteEntry] {
-        self.uninstall_delete_entries.as_slice()
+        self.inner.uninstall_delete_entries.as_slice()
     }
 
     /// Returns the run entries as a slice.
     #[must_use]
     #[inline]
     pub const fn run_entries(&self) -> &[RunEntry] {
-        self.run_entries.as_slice()
+        self.inner.run_entries.as_slice()
     }
 
     /// Returns the uninstall run entries as a slice.
     #[must_use]
     #[inline]
     pub const fn uninstall_run_entries(&self) -> &[RunEntry] {
-        self.uninstall_run_entries.as_slice()
+        self.inner.uninstall_run_entries.as_slice()
     }
 
     /// Returns a reference to the [`Wizard`].
     #[must_use]
     #[inline]
     pub const fn wizard(&self) -> &Wizard {
-        &self.wizard
+        &self.inner.wizard
     }
 
     /// Returns the file locations entries as a slice.
     #[must_use]
     #[inline]
     pub const fn file_locations(&self) -> &[FileLocation] {
-        self.file_locations.as_slice()
+        self.inner.file_locations.as_slice()
+    }
+
+    /// Returns an iterator of files.
+    ///
+    /// If you do not need every file, use [`filtered_files`].
+    ///
+    /// [`filtered_files`]: Self::filtered_files
+    #[cfg(feature = "extract")]
+    pub fn files(&mut self) -> FilesIterator<'_, R> {
+        FilesIterator::new(self)
+    }
+
+    /// Returns an iterator of files that match the given predicate.
+    ///
+    /// This is more performant than a [`Filter`] on [`files`] since files that
+    /// do not match are not attempted to be read and decompressed.
+    ///
+    /// [`Filter`]: std::iter::Filter
+    /// [`files`]: Self::files
+    #[cfg(feature = "extract")]
+    pub fn filtered_files<P>(&mut self, predicate: P) -> FilteredFilesIterator<'_, R>
+    where
+        P: FnMut(&ExtractEntry) -> bool,
+    {
+        FilteredFilesIterator::new(self, predicate)
     }
 }

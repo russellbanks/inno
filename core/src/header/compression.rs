@@ -40,6 +40,13 @@ impl Compression {
             Self::Unknown => "Unknown",
         }
     }
+
+    /// Returns `true` if there is no compression.
+    #[must_use]
+    #[inline]
+    pub const fn is_stored(&self) -> bool {
+        matches!(self, Self::Stored)
+    }
 }
 
 impl fmt::Display for Compression {

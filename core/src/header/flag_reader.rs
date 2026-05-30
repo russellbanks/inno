@@ -48,7 +48,8 @@ where
         Ok(())
     }
 
-    pub fn with_min_bytes(mut self, min: usize) -> Self {
+    #[must_use]
+    pub const fn with_min_bytes(mut self, min: usize) -> Self {
         self.min_bytes = Some(min);
         self
     }

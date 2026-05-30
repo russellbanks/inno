@@ -10,7 +10,7 @@ pub struct ExtractEntry {
 }
 
 impl ExtractEntry {
-    /// Creates a new [`crate::extract::ExtractEntry`] from a reference to a [`File`] and a reference to a
+    /// Creates a new [`crate::extract::ExtractEntry`] from a [`File`] and a
     /// [`FileLocation`].
     #[must_use]
     #[inline]

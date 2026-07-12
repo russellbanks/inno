@@ -14,7 +14,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-inno = "0.4"
+inno = "0.5"
 ```
 
 Then, open an installer and inspect its contents:

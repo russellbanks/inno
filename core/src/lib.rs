@@ -323,6 +323,169 @@ impl InnoInner {
             file_locations,
         })
     }
+
+    #[inline]
+    pub const fn setup_loader(&self) -> &SetupLoader {
+        &self.setup_loader
+    }
+
+    pub const fn header(&self) -> &Header {
+        &self.header
+    }
+
+    /// Returns the Inno Setup version.
+    #[must_use]
+    #[inline]
+    pub const fn version(&self) -> InnoVersion {
+        self.version
+    }
+
+    /// Returns the encryption header, if any.
+    #[must_use]
+    pub fn encryption_header(&self) -> Option<&EncryptionHeader> {
+        self.encryption_header
+            .as_ref()
+            .or_else(|| self.header.encryption_header())
+    }
+
+    /// Returns the primary language of the installer, if available.
+    #[must_use]
+    #[inline]
+    pub const fn primary_language(&self) -> Option<&Language> {
+        self.languages().first()
+    }
+
+    /// Returns the languages as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn languages(&self) -> &[Language] {
+        self.languages.as_slice()
+    }
+
+    /// Returns the message entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn message_entries(&self) -> &[MessageEntry] {
+        self.messages.as_slice()
+    }
+
+    pub fn messages(&self) -> impl Iterator<Item = Message<'_, '_>> {
+        self.messages
+            .iter()
+            .map(|message| Message::new(message, self.languages()))
+    }
+
+    /// Returns the permission entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn permissions(&self) -> &[Permission] {
+        self.permissions.as_slice()
+    }
+
+    /// Returns the type entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn type_entries(&self) -> &[Type] {
+        self.type_entries.as_slice()
+    }
+
+    /// Returns the component entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn components(&self) -> &[Component] {
+        self.components.as_slice()
+    }
+
+    /// Returns the task entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn tasks(&self) -> &[Task] {
+        self.tasks.as_slice()
+    }
+
+    /// Returns the directory entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn directories(&self) -> &[Directory] {
+        self.directories.as_slice()
+    }
+
+    /// Returns the IS Sig Key entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn is_sig_keys(&self) -> &[ISSigKey] {
+        self.is_sig_keys.as_slice()
+    }
+
+    /// Returns the file entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn file_entries(&self) -> &[File] {
+        self.files.as_slice()
+    }
+
+    /// Returns the icon entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn icon_entries(&self) -> &[Icon] {
+        self.icons.as_slice()
+    }
+
+    /// Returns the ini entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn ini_entries(&self) -> &[Ini] {
+        self.ini_entries.as_slice()
+    }
+
+    /// Returns the registry entries a slice.
+    #[must_use]
+    #[inline]
+    pub const fn registry_entries(&self) -> &[RegistryEntry] {
+        self.registry_entries.as_slice()
+    }
+
+    /// Returns the delete entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn delete_entries(&self) -> &[DeleteEntry] {
+        self.delete_entries.as_slice()
+    }
+
+    /// Returns the uninstall delete entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn uninstall_delete_entries(&self) -> &[DeleteEntry] {
+        self.uninstall_delete_entries.as_slice()
+    }
+
+    /// Returns the run entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn run_entries(&self) -> &[RunEntry] {
+        self.run_entries.as_slice()
+    }
+
+    /// Returns the uninstall run entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn uninstall_run_entries(&self) -> &[RunEntry] {
+        self.uninstall_run_entries.as_slice()
+    }
+
+    /// Returns a reference to the [`Wizard`].
+    #[must_use]
+    #[inline]
+    pub const fn wizard(&self) -> &Wizard {
+        &self.wizard
+    }
+
+    /// Returns the file locations entries as a slice.
+    #[must_use]
+    #[inline]
+    pub const fn file_locations(&self) -> &[FileLocation] {
+        self.file_locations.as_slice()
+    }
 }
 
 pub struct Inno<R: Read + Seek> {
@@ -374,167 +537,161 @@ impl<R: Read + Seek> Inno<R> {
 
     #[inline]
     pub const fn setup_loader(&self) -> &SetupLoader {
-        &self.inner.setup_loader
+        self.inner.setup_loader()
     }
 
     pub const fn header(&self) -> &Header {
-        &self.inner.header
+        self.inner.header()
     }
 
     /// Returns the Inno Setup version.
     #[must_use]
     #[inline]
     pub const fn version(&self) -> InnoVersion {
-        self.inner.version
+        self.inner.version()
     }
 
     /// Returns the encryption header, if any.
     #[must_use]
     pub fn encryption_header(&self) -> Option<&EncryptionHeader> {
-        self.inner
-            .encryption_header
-            .as_ref()
-            .or_else(|| self.inner.header.encryption_header())
+        self.inner.encryption_header()
     }
 
     /// Returns the primary language of the installer, if available.
     #[must_use]
     #[inline]
     pub const fn primary_language(&self) -> Option<&Language> {
-        self.languages().first()
+        self.inner.primary_language()
     }
 
     /// Returns the languages as a slice.
     #[must_use]
     #[inline]
     pub const fn languages(&self) -> &[Language] {
-        self.inner.languages.as_slice()
+        self.inner.languages()
     }
 
     /// Returns the message entries as a slice.
     #[must_use]
     #[inline]
     pub const fn message_entries(&self) -> &[MessageEntry] {
-        self.inner.messages.as_slice()
+        self.inner.message_entries()
     }
 
     pub fn messages(&self) -> impl Iterator<Item = Message<'_, '_>> {
-        self.inner
-            .messages
-            .iter()
-            .map(|message| Message::new(message, self.languages()))
+        self.inner.messages()
     }
 
     /// Returns the permission entries as a slice.
     #[must_use]
     #[inline]
     pub const fn permissions(&self) -> &[Permission] {
-        self.inner.permissions.as_slice()
+        self.inner.permissions()
     }
 
     /// Returns the type entries as a slice.
     #[must_use]
     #[inline]
     pub const fn type_entries(&self) -> &[Type] {
-        self.inner.type_entries.as_slice()
+        self.inner.type_entries()
     }
 
     /// Returns the component entries as a slice.
     #[must_use]
     #[inline]
     pub const fn components(&self) -> &[Component] {
-        self.inner.components.as_slice()
+        self.inner.components()
     }
 
     /// Returns the task entries as a slice.
     #[must_use]
     #[inline]
     pub const fn tasks(&self) -> &[Task] {
-        self.inner.tasks.as_slice()
+        self.inner.tasks()
     }
 
     /// Returns the directory entries as a slice.
     #[must_use]
     #[inline]
     pub const fn directories(&self) -> &[Directory] {
-        self.inner.directories.as_slice()
+        self.inner.directories()
     }
 
     /// Returns the IS Sig Key entries as a slice.
     #[must_use]
     #[inline]
     pub const fn is_sig_keys(&self) -> &[ISSigKey] {
-        self.inner.is_sig_keys.as_slice()
+        self.inner.is_sig_keys()
     }
 
     /// Returns the file entries as a slice.
     #[must_use]
     #[inline]
     pub const fn file_entries(&self) -> &[File] {
-        self.inner.files.as_slice()
+        self.inner.file_entries()
     }
 
     /// Returns the icon entries as a slice.
     #[must_use]
     #[inline]
     pub const fn icon_entries(&self) -> &[Icon] {
-        self.inner.icons.as_slice()
+        self.inner.icon_entries()
     }
 
     /// Returns the ini entries as a slice.
     #[must_use]
     #[inline]
     pub const fn ini_entries(&self) -> &[Ini] {
-        self.inner.ini_entries.as_slice()
+        self.inner.ini_entries()
     }
 
     /// Returns the registry entries a slice.
     #[must_use]
     #[inline]
     pub const fn registry_entries(&self) -> &[RegistryEntry] {
-        self.inner.registry_entries.as_slice()
+        self.inner.registry_entries()
     }
 
     /// Returns the delete entries as a slice.
     #[must_use]
     #[inline]
     pub const fn delete_entries(&self) -> &[DeleteEntry] {
-        self.inner.delete_entries.as_slice()
+        self.inner.delete_entries()
     }
 
     /// Returns the uninstall delete entries as a slice.
     #[must_use]
     #[inline]
     pub const fn uninstall_delete_entries(&self) -> &[DeleteEntry] {
-        self.inner.uninstall_delete_entries.as_slice()
+        self.inner.uninstall_delete_entries()
     }
 
     /// Returns the run entries as a slice.
     #[must_use]
     #[inline]
     pub const fn run_entries(&self) -> &[RunEntry] {
-        self.inner.run_entries.as_slice()
+        self.inner.run_entries()
     }
 
     /// Returns the uninstall run entries as a slice.
     #[must_use]
     #[inline]
     pub const fn uninstall_run_entries(&self) -> &[RunEntry] {
-        self.inner.uninstall_run_entries.as_slice()
+        self.inner.uninstall_run_entries()
     }
 
     /// Returns a reference to the [`Wizard`].
     #[must_use]
     #[inline]
     pub const fn wizard(&self) -> &Wizard {
-        &self.inner.wizard
+        self.inner.wizard()
     }
 
     /// Returns the file locations entries as a slice.
     #[must_use]
     #[inline]
     pub const fn file_locations(&self) -> &[FileLocation] {
-        self.inner.file_locations.as_slice()
+        self.inner.file_locations()
     }
 
     /// Returns an iterator of files.

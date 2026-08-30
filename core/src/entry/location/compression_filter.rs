@@ -135,7 +135,11 @@ impl CompressionFilter {
     /// * If the compression filter is [`NoFilter`], `data` is not modified
     ///   and the returned [`Cow`] is a reference to the data.
     ///
+    /// [`InstructionFilter4108`]: Self::InstructionFilter4108
+    /// [`InstructionFilter5200`]: Self::InstructionFilter5200
+    /// [`InstructionFilter5309`]: Self::InstructionFilter5309
     /// [`ZlibFilter`]: Self::ZlibFilter
+    /// [`NoFilter`]: Self::NoFilter
     pub fn decode(self, data: &mut [u8]) -> io::Result<Cow<'_, [u8]>> {
         match self {
             Self::NoFilter => {}
@@ -156,11 +160,14 @@ impl CompressionFilter {
 
 #[cfg(test)]
 mod tests {
-    use super::CompressionFilter;
+    use zerocopy::transmute;
+
+    use super::{super::instruction::OpCode, CompressionFilter, Instruction};
 
     #[test]
     fn no_filter_is_noop() {
-        let mut data = [0xE8, 0x01, 0x02, 0x03, 0x04];
+        let instruction = Instruction::new(OpCode::Call, 0x04030201);
+        let mut data: [u8; size_of::<Instruction>()] = transmute!(instruction);
         let original = data;
 
         CompressionFilter::NoFilter.decode(&mut data).unwrap();
@@ -186,7 +193,8 @@ mod tests {
     #[test]
     fn filter_5200_no_transform_non_sign_extended() {
         // High byte is 0x42, not 0x00 or 0xFF - should not transform
-        let mut data = [0xE8, 0x10, 0x20, 0x30, 0x42];
+        let instruction = Instruction::new(OpCode::Call, 0x42302010);
+        let mut data: [u8; size_of::<Instruction>()] = transmute!(instruction);
         let original = data;
 
         CompressionFilter::InstructionFilter5200

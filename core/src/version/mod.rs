@@ -42,7 +42,7 @@ impl InnoVersion {
             minor,
             patch,
             revision,
-            variant: if major >= 6 && minor >= 3 {
+            variant: if major > 6 || (major == 6 && minor >= 3) {
                 VersionVariant::UNICODE
             } else {
                 VersionVariant::empty()
@@ -81,7 +81,7 @@ impl InnoVersion {
             minor,
             patch,
             revision,
-            variant: if major >= 6 && minor >= 3 {
+            variant: if major > 6 || (major == 6 && minor >= 3) {
                 variant.union(VersionVariant::UNICODE)
             } else {
                 variant

@@ -1026,7 +1026,7 @@ dependencies = [
 
 [[package]]
 name = "innex"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "anstream",
  "anyhow",
@@ -1043,7 +1043,7 @@ dependencies = [
 
 [[package]]
 name = "inno"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "bitflags 2.13.1",
  "bytes",

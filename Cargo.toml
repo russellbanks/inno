@@ -14,7 +14,7 @@ name = "innex"
 members = ["core"]
 
 [workspace.package]
-version = "0.5.1"
+version = "0.5.2"
 edition = "2024"
 rust-version = "1.93"
 repository = "https://github.com/russellbanks/inno"

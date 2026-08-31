@@ -62,8 +62,6 @@ The following are a list of [Cargo features][cargo-features] that can be enabled
 - Safe decoding of text according to the installer’s Unicode/ANSI mode and language codepage.
 - Version-aware parsing that accounts for structural changes between Inno Setup releases.
 
-This crate does not extract files by itself, but it exposes enough information
-(e.g., file locations, checksums, compression type) for downstream tools to do so.
 See the `innex` CLI in this repository for a reference consumer.
 
 # Supported versions
@@ -136,7 +134,8 @@ use entry::{
     Component, DeleteEntry, Directory, File, FileLocation, ISSigKey, Icon, Ini, Language, Message,
     MessageEntry, Permission, RegistryEntry, RunEntry, Task, Type,
 };
-use error::{HeaderStream, InnoError, InnoResult};
+pub use error::InnoResult;
+use error::{HeaderStream, InnoError};
 pub use header::Header;
 #[cfg(feature = "extract")]
 use iterator::{ExtractEntry, FilesIterator, FilteredFilesIterator};
@@ -152,7 +151,7 @@ pub use zerocopy;
 ///
 /// Inno Setup versions newer than this version are likely to have breaking changes where the
 /// changes have not yet been implemented into this library.
-pub const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(6, 7, u8::MAX, u8::MAX);
+pub const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(7, 0, u8::MAX, u8::MAX);
 
 #[derive(Debug)]
 pub struct InnoInner {

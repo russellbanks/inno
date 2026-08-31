@@ -93,6 +93,7 @@ pub struct Header {
     compiled_code: Option<String>,
     lead_bytes: [u8; 256 / u8::BITS as usize],
     entry_counts: EntryCounts,
+    compiled_code_version: Option<u32>,
     background_color: Color,
     background_color2: Color,
     wizard: WizardSettings,
@@ -232,6 +233,9 @@ impl Header {
             header.lead_bytes = buf;
         }
         header.entry_counts = EntryCounts::read(&mut reader, version)?;
+        if version >= 7 {
+            header.compiled_code_version = Some(reader.read_u32::<LE>()?);
+        }
         let license_size = if version < 1.3 {
             reader.read_u32::<LE>()?
         } else {
@@ -1093,6 +1097,16 @@ impl Header {
         self.entry_counts.uninstall_run()
     }
 
+    /// Returns the compiled code version.
+    ///
+    /// Added in Inno Setup 7.0.
+    #[doc(alias = "CompiledCodeVersion")]
+    #[must_use]
+    #[inline]
+    pub const fn compiled_code_version(&self) -> Option<u32> {
+        self.compiled_code_version
+    }
+
     /// Returns the background color.
     #[must_use]
     #[inline]
@@ -1397,6 +1411,7 @@ impl fmt::Debug for Header {
                 "NumUninstallRunEntries",
                 &self.uninstall_delete_entry_count(),
             )
+            .field("CompiledCodeVersion", &self.compiled_code_version())
             .field("RunEntryCount", &self.run_entry_count())
             .field("UninstallRunEntryCount", &self.uninstall_run_entry_count())
             .field("BackColor", &self.background_color())

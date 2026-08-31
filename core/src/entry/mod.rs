@@ -1,3 +1,4 @@
+mod bitness;
 pub mod checksum;
 mod component;
 mod condition;
@@ -16,6 +17,7 @@ mod run;
 mod task;
 mod r#type;
 
+pub use bitness::Bitness;
 pub use checksum::Checksum;
 pub use component::Component;
 pub use condition::Condition;

@@ -1,7 +1,7 @@
 use std::{error::Error, io::Cursor};
 
 use bytes::Bytes;
-use inno::{Inno, version::InnoVersion};
+use inno::{Inno, header::Architecture, version::InnoVersion};
 use reqwest::blocking;
 use rstest::rstest;
 use semver::Version;
@@ -128,7 +128,9 @@ fn inno_versions(
         "6.5.1",
         "6.5.2",
         "6.5.3",
-        "6.5.4"
+        "6.5.4",
+        "6.7.2",
+        "6.7.3"
     )]
     version: &str,
 ) -> Result<(), Box<dyn Error>> {
@@ -205,6 +207,36 @@ fn inno_6_7_1() -> Result<(), Box<dyn Error>> {
     // 6.7.0 parses without these, but 6.7.1 fails
     assert!(inno.wizard().back_images().is_empty());
     assert!(inno.wizard().back_images_dynamic_dark().is_empty());
+
+    Ok(())
+}
+
+#[test]
+#[ignore]
+fn inno_7_0_0() -> Result<(), Box<dyn Error>> {
+    let inno_x86_bytes = download_inno_version("7.0.0-beta-x86")?;
+    let inno_x86 = Inno::new(Cursor::new(inno_x86_bytes))?;
+
+    let inno_x64_bytes = download_inno_version("7.0.0-beta-x64")?;
+    let inno_x64 = Inno::new(Cursor::new(inno_x64_bytes))?;
+
+    assert_eq!(inno_x86.version(), InnoVersion::new(7, 0, 0, 3));
+    assert_eq!(inno_x86.version(), inno_x64.version());
+
+    assert!(inno_x86.version().is_unicode());
+    assert!(inno_x64.version().is_unicode());
+
+    assert_eq!(inno_x86.header().app_version(), Some("7.0.0-beta (32-bit)"));
+    assert_eq!(inno_x64.header().app_version(), Some("7.0.0-beta"));
+
+    assert_eq!(
+        inno_x86.header().architectures_allowed(),
+        Architecture::X86_COMPATIBLE
+    );
+    assert_eq!(
+        inno_x64.header().architectures_allowed(),
+        Architecture::X64_COMPATIBLE
+    );
 
     Ok(())
 }

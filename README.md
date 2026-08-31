@@ -17,14 +17,16 @@ inno = "0.5"
 ## Example
 
 ```rust
-use inno::Inno;
+use inno::{Inno, error::InnoResult};
 
-fn main() {
-    let inno_file = File::new("innosetup-6.7.3.exe").unwrap();
+fn main() -> InnoResult<()> {
+    let inno_file = File::new("innosetup-7.0.0-beta-x64.exe").unwrap();
 
-    let inno = Inno::new(file).unwrap();
+    let inno = Inno::new(file)?;
 
-    println!("{}", inno.header.app_name());
+    println!("{}", inno.header().app_name());
+
+    Ok(())
 }
 ```
 
@@ -44,6 +46,5 @@ at your option.
 
 ### Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any
-additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as
+defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

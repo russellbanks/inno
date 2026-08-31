@@ -13,13 +13,13 @@ pub use verification::FileVerification;
 use zerocopy::LE;
 
 use crate::{
-    entry::Condition,
+    entry::{Bitness, Condition},
     header::flag_reader::read_flags::read_flags,
     read::ReadBytesExt,
     version::{InnoVersion, windows_version::WindowsVersionRange},
 };
 
-/// <https://github.com/jrsoftware/issrc/blob/is-6_4_3/Projects/Src/Shared.Struct.pas#L225>
+/// <https://github.com/jrsoftware/issrc/blob/is-7_0_0/Projects/Src/Shared.Struct.pas#L282>
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct File {
     source: Option<String>,
@@ -38,6 +38,7 @@ pub struct File {
     external_size: u64,
     /// Index into the permission entry list
     permission: i16,
+    bitness: Bitness,
     flags: FileFlags,
     r#type: FileType,
 }
@@ -95,6 +96,10 @@ impl File {
             file.permission = reader.read_i16::<LE>()?;
         }
 
+        if version >= 7 {
+            file.bitness = Bitness::try_read_from_io(&mut reader)?;
+        }
+
         file.flags |= read_flags!(&mut reader,
             [
                 FileFlags::CONFIRM_OVERWRITE,
@@ -128,7 +133,7 @@ impl File {
             if version >= (4, 2, 5) => FileFlags::DONT_VERIFY_CHECKSUM,
             if version >= (5, 0, 3) => FileFlags::UNINS_NO_SHARED_FILE_PROMPT,
             if version >= 5.1 => FileFlags::CREATE_ALL_SUB_DIRS,
-            if version >= (5, 1, 2) => FileFlags::BITS_32, FileFlags::BITS_64,
+            if version >= (5, 1, 2) && version < 7 => FileFlags::BITS_32, FileFlags::BITS_64,
             if version >= 5.2 => [
                 FileFlags::EXTERNAL_SIZE_PRESET,
                 FileFlags::SET_NTFS_COMPRESSION,
@@ -224,6 +229,13 @@ impl File {
         self.permission
     }
 
+    /// Returns the bitness of the file.
+    #[must_use]
+    #[inline]
+    pub const fn bitness(&self) -> Bitness {
+        self.bitness
+    }
+
     /// Returns the flags associated with the file.
     #[must_use]
     #[inline]
@@ -256,6 +268,7 @@ impl Default for File {
             attributes: 0,
             external_size: 0,
             permission: -1,
+            bitness: Bitness::default(),
             flags: FileFlags::default(),
             r#type: FileType::default(),
         }

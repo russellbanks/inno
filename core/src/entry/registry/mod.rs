@@ -10,7 +10,7 @@ pub use root::RegRoot;
 pub use r#type::RegistryValueType;
 use zerocopy::{LE, try_transmute};
 
-use super::Condition;
+use super::{Bitness, Condition};
 use crate::{
     InnoVersion, ReadBytesExt, WindowsVersionRange, header::flag_reader::read_flags::read_flags,
     string::PascalString,
@@ -25,6 +25,7 @@ pub struct RegistryEntry {
     reg_root: RegRoot,
     permission: i16,
     r#type: RegistryValueType,
+    bitness: Bitness,
     flags: RegistryFlags,
 }
 
@@ -65,6 +66,10 @@ impl RegistryEntry {
 
         registry.r#type = RegistryValueType::try_read_from_io(&mut reader)?;
 
+        if version >= 7 {
+            registry.bitness = Bitness::try_read_from_io(&mut reader)?;
+        }
+
         registry.flags = read_flags!(&mut reader,
             [
                 RegistryFlags::CREATE_VALUE_IF_DOESNT_EXIST,
@@ -77,7 +82,7 @@ impl RegistryEntry {
             if version >= (1, 3, 9) => [RegistryFlags::DELETE_KEY, RegistryFlags::DELETE_VALUE],
             if version >= (1, 3, 12) => RegistryFlags::NO_ERROR,
             if version >= (1, 3, 16) => RegistryFlags::DONT_CREATE_KEY,
-            if version >= 5.1 => [RegistryFlags::BITS_32, RegistryFlags::BITS_64]
+            if version >= 5.1 && version < 7 => [RegistryFlags::BITS_32, RegistryFlags::BITS_64]
         )?;
 
         Ok(registry)
@@ -130,6 +135,13 @@ impl RegistryEntry {
         self.r#type
     }
 
+    /// Returns the bitness of the registry entry.
+    #[must_use]
+    #[inline]
+    pub const fn bitness(&self) -> Bitness {
+        self.bitness
+    }
+
     /// Returns the registry flags.
     #[must_use]
     #[inline]
@@ -148,6 +160,7 @@ impl Default for RegistryEntry {
             reg_root: RegRoot::default(),
             permission: -1,
             r#type: RegistryValueType::default(),
+            bitness: Bitness::default(),
             flags: RegistryFlags::default(),
         }
     }

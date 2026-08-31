@@ -134,15 +134,18 @@ use entry::{
     Component, DeleteEntry, Directory, File, FileLocation, ISSigKey, Icon, Ini, Language, Message,
     MessageEntry, Permission, RegistryEntry, RunEntry, Task, Type,
 };
+use error::InnoError;
 pub use error::InnoResult;
-use error::{HeaderStream, InnoError};
 pub use header::Header;
 #[cfg(feature = "extract")]
 use iterator::{ExtractEntry, FilesIterator, FilteredFilesIterator};
 use itertools::Itertools;
 use loader::SetupLoader;
 use lzma_stream_header::LzmaStreamHeader;
-use read::{ReadBytesExt, stream::InnoStreamReader};
+use read::{
+    ReadBytesExt,
+    stream::{InnoStreamReader, Primary, Secondary},
+};
 use version::{InnoVersion, windows_version::WindowsVersionRange};
 pub use wizard::Wizard;
 pub use zerocopy;
@@ -282,9 +285,7 @@ impl InnoInner {
         }
 
         // Check that the reader is at the end of the primary header stream
-        if !reader.is_end_of_stream() {
-            return Err(InnoError::UnexpectedExtraData(HeaderStream::Primary));
-        }
+        reader.check_end_of_stream::<Primary>()?;
 
         // Reset the block reader for the secondary header stream
         reader = reader.reset()?;
@@ -293,9 +294,7 @@ impl InnoInner {
             .map(|_| FileLocation::read(&mut reader, &header, inno_version))
             .collect::<io::Result<Vec<_>>>()?;
 
-        if !reader.is_end_of_stream() {
-            return Err(InnoError::UnexpectedExtraData(HeaderStream::Secondary));
-        }
+        reader.check_end_of_stream::<Secondary>()?;
 
         Ok(Self {
             setup_loader,

@@ -3,10 +3,10 @@ use std::io::{Error, ErrorKind, Read, Result, Take};
 use zerocopy::LE;
 
 use crate::{
-    ReadBytesExt,
+    InnoResult, ReadBytesExt,
     compression::Compression,
     entry::checksum::ChecksumMismatchError,
-    error::InnoError,
+    error::{HeaderStream, InnoError},
     lzma_stream_header::LzmaStreamHeader,
     read::{
         block::{INNO_BLOCK_SIZE, InnoBlockReader},
@@ -130,12 +130,24 @@ impl<R: Read> InnoStreamReader<R> {
         self.inner
     }
 
-    /// Returns true if the reader is at the end of the stream.
-    ///
-    /// This means that the number of compressed bytes specified in the stream header has been read.
-    #[must_use]
-    pub fn is_end_of_stream(&self) -> bool {
-        self.get_ref().get_ref().total_in() == self.compression.size() as usize
+    /// Checks whether the reader is at the end of the stream by attempting to read one byte.
+    pub fn check_end_of_stream<S: Stream>(&mut self) -> InnoResult<()> {
+        // Checking whether the underlying block reader has read as many bytes
+        // as specified in the stream header is not reliable as a decoder may
+        // return EOF when there is still a byte left. This is the case with
+        // innosetup-7.0.2-x86.exe where its last block has just one byte of
+        // data after the CRC.
+        //
+        // Instead, we must attempt to read a single byte to determine if there
+        // is actually more data.
+
+        let mut buf = [0; 1];
+
+        if self.read(&mut buf)? != 0 {
+            return Err(InnoError::UnexpectedExtraData(S::HEADER_STREAM));
+        }
+
+        Ok(())
     }
 }
 
@@ -143,4 +155,30 @@ impl<R: Read> Read for InnoStreamReader<R> {
     fn read(&mut self, dest: &mut [u8]) -> Result<usize> {
         self.inner.read(dest)
     }
+}
+
+/// A type-level enumeration of Inno Setup header streams.
+pub trait Stream: private::Sealed {
+    const HEADER_STREAM: HeaderStream;
+}
+
+/// Primary header stream.
+pub struct Primary;
+
+impl Stream for Primary {
+    const HEADER_STREAM: HeaderStream = HeaderStream::Primary;
+}
+
+/// Secondary header stream.
+pub struct Secondary;
+
+impl Stream for Secondary {
+    const HEADER_STREAM: HeaderStream = HeaderStream::Secondary;
+}
+
+mod private {
+    pub trait Sealed {}
+
+    impl Sealed for super::Primary {}
+    impl Sealed for super::Secondary {}
 }

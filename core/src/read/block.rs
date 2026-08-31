@@ -113,7 +113,7 @@ impl<R: io::Read> InnoBlockReader<R> {
                 io::ErrorKind::InvalidData,
                 InnoError::ChecksumMismatch {
                     location: "Inno block",
-                    inner: ChecksumMismatchError::new_adler32(block_crc32, actual_crc32),
+                    inner: ChecksumMismatchError::new_crc32(block_crc32, actual_crc32),
                 },
             ));
         }

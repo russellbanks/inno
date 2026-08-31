@@ -84,13 +84,8 @@ impl<R: io::Read> InnoBlockReader<R> {
     fn read_block(&mut self) -> io::Result<bool> {
         let block_crc32 = match self.inner.read_u32::<LE>() {
             Ok(block_crc32) => block_crc32,
-            Err(error) => {
-                return if error.kind() == io::ErrorKind::UnexpectedEof {
-                    Ok(false)
-                } else {
-                    Err(error)
-                };
-            }
+            Err(error) if error.kind() == io::ErrorKind::UnexpectedEof => return Ok(false),
+            Err(error) => return Err(error),
         };
 
         self.total_in += size_of::<u32>();
@@ -130,7 +125,7 @@ impl<R: io::Read> io::Read for InnoBlockReader<R> {
 
         while total_read < dest.len() {
             if self.pos == self.length && !self.read_block()? {
-                return Ok(total_read);
+                break;
             }
 
             let to_copy = min(dest.len() - total_read, self.length - self.pos);

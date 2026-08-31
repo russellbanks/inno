@@ -22,6 +22,7 @@ fn download_inno_version(version: &str) -> reqwest::Result<Bytes> {
         major,
         minor,
         patch,
+        ref pre,
         ..
     } = semver;
 
@@ -30,6 +31,16 @@ fn download_inno_version(version: &str) -> reqwest::Result<Bytes> {
             "https://github.com/jrsoftware/issrc/releases/download/is-{major}_{minor}_{patch}{new}/innosetup-{version}.exe",
             new = if semver == Version::new(6, 0, 3) || semver == Version::new(6, 0, 4) {
                 "-2"
+            } else if major == 7 && minor == 0 && patch == 0 && pre.starts_with("preview") {
+                if pre.starts_with("preview-1") {
+                    "_0"
+                } else if pre.starts_with("preview-2") {
+                    "_1"
+                } else if pre.starts_with("preview-3") {
+                    "_2"
+                } else {
+                    ""
+                }
             } else {
                 ""
             }
@@ -130,7 +141,19 @@ fn inno_versions(
         "6.5.3",
         "6.5.4",
         "6.7.2",
-        "6.7.3"
+        "6.7.3",
+        "7.0.0-preview-1-x86",
+        "7.0.0-preview-1-x64",
+        "7.0.0-preview-2-x86",
+        "7.0.0-preview-2-x64",
+        "7.0.0-preview-3-x86",
+        "7.0.0-preview-3-x64",
+        "7.0.1-beta-x86",
+        "7.0.1-beta-x64",
+        "7.0.2-x86",
+        "7.0.2-x64",
+        "7.1.0-x86",
+        "7.1.0-x64"
     )]
     version: &str,
 ) -> Result<(), Box<dyn Error>> {

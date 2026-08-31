@@ -96,7 +96,7 @@ impl File {
             file.permission = reader.read_i16::<LE>()?;
         }
 
-        if version >= 7 {
+        if version >= (7, 0, 0, 3) {
             file.bitness = Bitness::try_read_from_io(&mut reader)?;
         }
 
@@ -133,7 +133,7 @@ impl File {
             if version >= (4, 2, 5) => FileFlags::DONT_VERIFY_CHECKSUM,
             if version >= (5, 0, 3) => FileFlags::UNINS_NO_SHARED_FILE_PROMPT,
             if version >= 5.1 => FileFlags::CREATE_ALL_SUB_DIRS,
-            if version >= (5, 1, 2) && version < 7 => FileFlags::BITS_32, FileFlags::BITS_64,
+            if version >= (5, 1, 2) && version < (7, 0, 0, 3) => FileFlags::BITS_32, FileFlags::BITS_64,
             if version >= 5.2 => [
                 FileFlags::EXTERNAL_SIZE_PRESET,
                 FileFlags::SET_NTFS_COMPRESSION,
@@ -143,6 +143,12 @@ impl File {
             if version >= 6.5 => [FileFlags::DOWNLOAD, FileFlags::EXTRACT_ARCHIVE],
             pad if version >= 6.7 => 8,
         )?;
+
+        if file.bitness == Bitness::Bit32 {
+            file.flags |= FileFlags::BITS_32;
+        } else if file.bitness == Bitness::Bit64 {
+            file.flags |= FileFlags::BITS_64;
+        }
 
         file.r#type = FileType::try_read_from_io(&mut reader)?;
 

@@ -24,6 +24,7 @@ pub struct RunEntry {
     status_message: Option<String>,
     verb: Option<String>,
     description: Option<String>,
+    /// Added in Inno Setup 7.0.0.1.
     on_log: Option<String>,
     show_command: i32,
     wait_condition: WaitCondition,
@@ -69,7 +70,7 @@ impl RunEntry {
 
         Condition::read(&mut reader, codepage, version)?;
 
-        if version >= 7 {
+        if version >= (7, 0, 0, 1) {
             run_entry.on_log = reader.read_decoded_pascal_string(codepage)?;
         }
 
@@ -81,7 +82,7 @@ impl RunEntry {
 
         run_entry.wait_condition = WaitCondition::try_read_from_io(&mut reader)?;
 
-        if version >= 7 {
+        if version >= (7, 0, 0, 3) {
             run_entry.bitness = Bitness::try_read_from_io(&mut reader)?;
         }
 
@@ -95,11 +96,17 @@ impl RunEntry {
                 RunFlags::SKIP_IF_NOT_SILENT
             ],
             if version >= (2, 0, 8) => RunFlags::HIDE_WIZARD,
-            if version >= (5, 1, 10) && version < 7 => [RunFlags::BITS_32, RunFlags::BITS_64],
+            if version >= (5, 1, 10) && version < (7, 0, 0, 3) => [RunFlags::BITS_32, RunFlags::BITS_64],
             if version >= 5.2 => RunFlags::RUN_AS_ORIGINAL_USER,
             if version >= 6.1 => RunFlags::DONT_LOG_PARAMETERS,
             if version >= 6.3 => RunFlags::LOG_OUTPUT,
         )?;
+
+        if run_entry.bitness == Bitness::Bit32 {
+            run_entry.options |= RunFlags::BITS_32;
+        } else if run_entry.bitness == Bitness::Bit64 {
+            run_entry.options |= RunFlags::BITS_64;
+        }
 
         Ok(run_entry)
     }

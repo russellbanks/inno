@@ -233,7 +233,7 @@ impl Header {
             header.lead_bytes = buf;
         }
         header.entry_counts = EntryCounts::read(&mut reader, version)?;
-        if version >= 7 {
+        if version >= (7, 0, 0, 3) {
             header.compiled_code_version = Some(reader.read_u32::<LE>()?);
         }
         let license_size = if version < 1.3 {

@@ -66,7 +66,7 @@ impl RegistryEntry {
 
         registry.r#type = RegistryValueType::try_read_from_io(&mut reader)?;
 
-        if version >= 7 {
+        if version >= (7, 0, 0, 3) {
             registry.bitness = Bitness::try_read_from_io(&mut reader)?;
         }
 
@@ -82,8 +82,14 @@ impl RegistryEntry {
             if version >= (1, 3, 9) => [RegistryFlags::DELETE_KEY, RegistryFlags::DELETE_VALUE],
             if version >= (1, 3, 12) => RegistryFlags::NO_ERROR,
             if version >= (1, 3, 16) => RegistryFlags::DONT_CREATE_KEY,
-            if version >= 5.1 && version < 7 => [RegistryFlags::BITS_32, RegistryFlags::BITS_64]
+            if version >= 5.1 && version < (7, 0, 0, 3) => [RegistryFlags::BITS_32, RegistryFlags::BITS_64]
         )?;
+
+        if registry.bitness == Bitness::Bit32 {
+            registry.flags |= RegistryFlags::BITS_32;
+        } else if registry.bitness == Bitness::Bit64 {
+            registry.flags |= RegistryFlags::BITS_64;
+        }
 
         Ok(registry)
     }

@@ -153,7 +153,7 @@ impl fmt::Debug for Color {
         let (red, green, blue, alpha) = self.to_rgba();
         write!(
             f,
-            "Color(red={red}, green={green}, blue={blue}, alpha={alpha}, {self}",
+            "Color(red={red}, green={green}, blue={blue}, alpha={alpha}, {self})",
         )
     }
 }

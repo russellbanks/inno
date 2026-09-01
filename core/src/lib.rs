@@ -14,7 +14,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-inno = "0.5"
+inno = "0.6"
 ```
 
 Then, open an installer and inspect its contents:
@@ -66,7 +66,7 @@ See the `innex` CLI in this repository for a reference consumer.
 
 # Supported versions
 
-Parsing is supported up to Inno Setup 6.7.x. Newer installers may work but can introduce format
+Parsing is supported up to Inno Setup 7.1.x. Newer installers may work but can introduce format
 changes. In that case, you will get [`InnoError::UnsupportedVersion`].
 
 # Features

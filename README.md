@@ -11,7 +11,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-inno = "0.5"
+inno = "0.6"
 ```
 
 ## Example
@@ -20,7 +20,7 @@ inno = "0.5"
 use inno::{Inno, error::InnoResult};
 
 fn main() -> InnoResult<()> {
-    let inno_file = File::new("innosetup-7.0.0-beta-x64.exe").unwrap();
+    let inno_file = File::new("innosetup-7.1.0-x64.exe").unwrap();
 
     let inno = Inno::new(file)?;
 

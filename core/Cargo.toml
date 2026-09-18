@@ -30,6 +30,11 @@ simd-adler32 = { version = "0.3", optional = true, default-features = false, fea
 [features]
 chrono = ["dep:chrono", "nt-time/chrono"]
 extract = ["dep:sha2", "dep:md5", "dep:sha1", "dep:simd-adler32"]
+# Backs `filtered_files` with the streaming reader instead of reading each
+# file into a `Vec`. Off by default: it trades a cached re-serve of a shared
+# location for re-reading it, which is free on an installer that gives each
+# file its own chunk and costs a chunk's decode on a solid one.
+streaming-filtered-files = ["extract"]
 jiff = ["dep:jiff", "nt-time/jiff"]
 
 [dev-dependencies]

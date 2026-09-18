@@ -17,14 +17,14 @@ mod buffered {
     };
 
     use crate::{
-        Inno,
+        Inno, Source,
         error::{InnoError, InnoResult},
         iterator::{ExtractEntry, files_reader::FilesReader},
+        read::Embedded,
     };
 
     pub struct FilteredFilesIterator<'reader, R: Read + Seek> {
         reader: FilesReader<'reader, R>,
-        data_offset: u64,
         chunks: BTreeMap<u64, VecDeque<ExtractEntry>>,
         entries: VecDeque<ExtractEntry>,
         current_position: u64,
@@ -72,14 +72,20 @@ mod buffered {
                 })
                 .collect();
 
+            let data_offset = inno
+                .inner
+                .setup_loader
+                .data_offset()
+                .try_into()
+                .unwrap_or_else(|_| unreachable!());
+
+            let source = match inno.slices.as_mut() {
+                Some(slices) => Source::Slices(slices),
+                None => Source::Embedded(Embedded::new(&mut inno.reader, data_offset)),
+            };
+
             Self {
-                reader: FilesReader::Source(Some(&mut inno.reader)),
-                data_offset: inno
-                    .inner
-                    .setup_loader
-                    .data_offset()
-                    .try_into()
-                    .unwrap_or_else(|_| unreachable!()),
+                reader: FilesReader::Source(Some(source)),
                 entries: VecDeque::new(),
                 chunks,
                 current_position: 0,
@@ -100,10 +106,7 @@ mod buffered {
 
                 let entry = self.entries.pop_front()?;
 
-                if let Err(err) = self
-                    .reader
-                    .reinitialize(self.data_offset, entry.file_location().chunk())
-                {
+                if let Err(err) = self.reader.reinitialize(entry.file_location().chunk()) {
                     return Some(Err(err));
                 }
 

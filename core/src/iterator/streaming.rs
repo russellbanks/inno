@@ -9,14 +9,14 @@ use flate2::{Decompress, FlushDecompress, Status};
 #[cfg(test)]
 use crate::entry::checksum::Checksum;
 use crate::{
-    Inno,
+    Inno, Source,
     entry::{
         CompressionFilter,
         checksum::{ChecksumHasher, ChecksumMismatchError},
     },
     error::InnoResult,
     iterator::{ExtractEntry, files_reader::FilesReader},
-    read::chunk::Chunk,
+    read::{Embedded, chunk::Chunk},
 };
 
 /// How much is read and filtered at a time. Has to be the filters' own block,
@@ -43,7 +43,6 @@ pub(super) fn mismatch_to_io(error: ChecksumMismatchError) -> io::Error {
 /// exist at a time and [`Iterator`] cannot express it.
 pub struct StreamingFiles<'reader, R: Read + Seek> {
     reader: FilesReader<'reader, R>,
-    data_offset: u64,
     /// In the order the installer records them, which is the order a caller
     /// correlating results with anything else derived from that list expects.
     entries: VecDeque<ExtractEntry>,
@@ -84,14 +83,20 @@ impl<'reader, R: Read + Seek> StreamingFiles<'reader, R> {
             }
         }
 
+        let data_offset = inno
+            .inner
+            .setup_loader
+            .data_offset()
+            .try_into()
+            .unwrap_or_else(|_| unreachable!());
+
+        let source = match inno.slices.as_mut() {
+            Some(slices) => Source::Slices(slices),
+            None => Source::Embedded(Embedded::new(&mut inno.reader, data_offset)),
+        };
+
         Self {
-            reader: FilesReader::Source(Some(&mut inno.reader)),
-            data_offset: inno
-                .inner
-                .setup_loader
-                .data_offset()
-                .try_into()
-                .unwrap_or_else(|_| unreachable!()),
+            reader: FilesReader::Source(Some(source)),
             entries,
             chunk: None,
             current_position: 0,
@@ -107,8 +112,7 @@ impl<'reader, R: Read + Seek> StreamingFiles<'reader, R> {
     #[cfg(test)]
     fn over(reader: &'reader mut R) -> Self {
         Self {
-            reader: FilesReader::Source(Some(reader)),
-            data_offset: 0,
+            reader: FilesReader::Source(Some(Source::Embedded(Embedded::new(reader, 0)))),
             entries: VecDeque::new(),
             chunk: None,
             current_position: 0,
@@ -151,7 +155,7 @@ impl<'reader, R: Read + Seek> StreamingFiles<'reader, R> {
         // backwards within a chunk on an installer Inno Setup built, so this is
         // one pass per chunk in practice rather than a rewind per entry.
         if self.chunk != Some(chunk) || target_offset < self.current_position {
-            if let Err(err) = self.reader.reinitialize(self.data_offset, &chunk) {
+            if let Err(err) = self.reader.reinitialize(&chunk) {
                 return Some(Err(err));
             }
 

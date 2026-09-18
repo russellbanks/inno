@@ -1,6 +1,6 @@
 use std::{
     fmt,
-    io::{self, Error, ErrorKind, Read, Seek, SeekFrom, Take},
+    io::{self, Error, ErrorKind, Read, Take},
 };
 
 use flate2::read::ZlibDecoder;
@@ -12,6 +12,7 @@ use crate::{
     error::{InnoError, InnoResult},
     header::Compression,
     lzma_stream_header::LzmaStreamHeader,
+    read::DataSource,
     read::chunk::Chunk,
 };
 
@@ -79,19 +80,20 @@ fn read_lzma2_dict_size<R: Read>(reader: &mut R) -> io::Result<u32> {
     })
 }
 
-impl<R: Read + Seek> DataChunkReader<R> {
+impl<R: DataSource> DataChunkReader<R> {
     /// Open a data chunk for reading.
     ///
-    /// Seeks to `data_offset + chunk.start_offset()` in the reader, validates
-    /// the chunk magic, and sets up the appropriate decompression.
-    pub fn new(mut reader: R, data_offset: u64, chunk: &Chunk) -> InnoResult<Self> {
+    /// Positions the source at the chunk, which is `chunk.start_offset()`
+    /// into the slice the chunk begins in, validates the chunk magic, and
+    /// sets up the appropriate decompression.
+    pub fn new(mut reader: R, chunk: &Chunk) -> InnoResult<Self> {
         if chunk.is_encrypted() {
             // We can't read encrypted chunks
             return Err(InnoError::Encrypted);
         }
 
         // Seek to the chunk position in the data stream
-        reader.seek(SeekFrom::Start(data_offset + chunk.start_offset()))?;
+        reader.seek_to(chunk.first_slice(), chunk.start_offset())?;
 
         // Read and validate the magic
         ZlibID::try_read_from_io(&mut reader)?;

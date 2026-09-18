@@ -48,6 +48,7 @@ The following are a list of [Cargo features][cargo-features] that can be enabled
 
 - **chrono**: Enables converting a file's created at time to a [`DateTime<UTC>`].
 - **jiff**: Enables converting a file's created at time to a [`Timestamp`].
+- **extract**: Enables extracting file contents and verifying their checksums.
 
 # What this crate provides
 
@@ -119,6 +120,7 @@ mod loader;
 mod lzma_stream_header;
 mod pe;
 mod read;
+mod slice;
 pub mod string;
 pub mod version;
 mod wizard;
@@ -490,7 +492,59 @@ impl InnoInner {
 
 pub struct Inno<R: Read + Seek> {
     reader: R,
+    /// The `.bin` files beside the installer, when its data is not in the
+    /// executable.
+    slices: Option<crate::slice::Slices>,
     pub inner: InnoInner,
+}
+
+/// Where one [`Inno`] reads file data from: the executable itself, or the
+/// slices beside it.
+#[cfg(feature = "extract")]
+pub(crate) enum Source<'a, R> {
+    Embedded(crate::read::Embedded<&'a mut R>),
+    Slices(&'a mut crate::slice::Slices),
+}
+
+#[cfg(feature = "extract")]
+impl<R: Read + Seek> Read for Source<'_, R> {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        match self {
+            Self::Embedded(source) => source.read(buffer),
+            Self::Slices(source) => source.read(buffer),
+        }
+    }
+}
+
+#[cfg(feature = "extract")]
+impl<R: Read + Seek> crate::read::DataSource for Source<'_, R> {
+    fn seek_to(&mut self, slice: u32, offset: u64) -> io::Result<()> {
+        match self {
+            Self::Embedded(source) => source.seek_to(slice, offset),
+            Self::Slices(source) => source.seek_to(slice, offset),
+        }
+    }
+}
+
+impl Inno<io::BufReader<std::fs::File>> {
+    /// Reads the installer at `path`, and finds the `.bin` slices beside it
+    /// if its data is not in the executable.
+    ///
+    /// [`new`] plus [`located_at`]; what you want unless the installer is not
+    /// a file on disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be opened or is not an Inno Setup
+    /// installer.
+    ///
+    /// [`new`]: Self::new
+    /// [`located_at`]: Self::located_at
+    pub fn open(path: impl AsRef<std::path::Path>) -> InnoResult<Self> {
+        let path = path.as_ref();
+        let reader = io::BufReader::new(std::fs::File::open(path)?);
+        Ok(Self::new(reader)?.located_at(path))
+    }
 }
 
 impl<R: Read + Seek> Inno<R> {
@@ -532,7 +586,31 @@ impl<R: Read + Seek> Inno<R> {
             InnoInner::read_stream(&mut reader, setup_loader, inno_version)
         }?;
 
-        Ok(Self { reader, inner })
+        Ok(Self {
+            reader,
+            slices: None,
+            inner,
+        })
+    }
+
+    /// Tells this installer where it was read from, so `.bin` slices beside
+    /// it can be found. [`open`] does this for you; [`new`] cannot, because a
+    /// reader does not say where it came from.
+    ///
+    /// No effect on an installer that keeps its data in the executable.
+    ///
+    /// [`new`]: Self::new
+    /// [`open`]: Self::open
+    pub fn located_at(mut self, path: &std::path::Path) -> Self {
+        if self.inner.setup_loader.data_offset() == 0 {
+            self.slices = Some(crate::slice::Slices::beside_named(
+                path,
+                self.inner.header.base_filename(),
+                self.inner.header.slices_per_disk_checked(),
+            ));
+        }
+
+        self
     }
 
     #[inline]

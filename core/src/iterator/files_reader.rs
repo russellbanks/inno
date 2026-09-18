@@ -1,13 +1,14 @@
 use std::io::{self, Read, Seek};
 
 use crate::{
+    Source,
     error::InnoResult,
     read::{chunk::Chunk, data_chunk::DataChunkReader},
 };
 
 pub(super) enum FilesReader<'reader, R: Read + Seek> {
-    Source(Option<&'reader mut R>),
-    Chunk(Option<DataChunkReader<&'reader mut R>>),
+    Source(Option<Source<'reader, R>>),
+    Chunk(Option<DataChunkReader<Source<'reader, R>>>),
 }
 
 impl<R: Read + Seek> FilesReader<'_, R> {
@@ -22,28 +23,20 @@ impl<R: Read + Seek> FilesReader<'_, R> {
         self
     }
 
-    pub(super) fn to_chunk_mut(
-        &mut self,
-        data_offset: u64,
-        chunk: &Chunk,
-    ) -> InnoResult<&mut Self> {
+    pub(super) fn to_chunk_mut(&mut self, chunk: &Chunk) -> InnoResult<&mut Self> {
         if let Self::Source(reader) = self
             && let Some(reader) = reader.take()
         {
-            let chunk_reader = DataChunkReader::new(reader, data_offset, chunk)?;
+            let chunk_reader = DataChunkReader::new(reader, chunk)?;
             *self = FilesReader::Chunk(Some(chunk_reader));
         }
 
         Ok(self)
     }
 
-    pub(super) fn reinitialize(
-        &mut self,
-        data_offset: u64,
-        chunk: &Chunk,
-    ) -> InnoResult<&mut Self> {
+    pub(super) fn reinitialize(&mut self, chunk: &Chunk) -> InnoResult<&mut Self> {
         self.to_source_mut();
-        self.to_chunk_mut(data_offset, chunk)
+        self.to_chunk_mut(chunk)
     }
 }
 

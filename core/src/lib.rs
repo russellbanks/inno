@@ -49,6 +49,8 @@ The following are a list of [Cargo features][cargo-features] that can be enabled
 - **chrono**: Enables converting a file's created at time to a [`DateTime<UTC>`].
 - **jiff**: Enables converting a file's created at time to a [`Timestamp`].
 - **extract**: Enables extracting file contents and verifying their checksums.
+- **gog**: Enables reassembling and verifying the files split apart by GOG.com
+  installers. Implies `extract`.
 
 # What this crate provides
 
@@ -113,6 +115,8 @@ mod compression;
 mod encryption;
 pub mod entry;
 pub mod error;
+#[cfg(feature = "gog")]
+pub mod gog;
 pub mod header;
 #[cfg(feature = "extract")]
 mod iterator;
@@ -813,10 +817,39 @@ impl<R: Read + Seek> Inno<R> {
     ///
     /// [`filtered_files`]: Self::filtered_files
     #[cfg(feature = "extract")]
+    #[cfg(feature = "extract")]
     pub fn streaming_files<P>(&mut self, predicate: P) -> StreamingFiles<'_, R>
     where
         P: FnMut(&ExtractEntry) -> bool,
     {
         StreamingFiles::new(self, predicate)
+    }
+
+    /// Returns the files a GOG.com installer produces, reading each one as a
+    /// stream.
+    ///
+    /// The parts a file is split across are an artefact of GOG's packaging, and
+    /// this hides them: the predicate chooses whole files and each is written
+    /// out in one call. An installer that does not use GOG's scheme produces
+    /// nothing, since [`gog::files`] finds no markers in it.
+    ///
+    /// [`gog::files`]: crate::gog::files
+    #[cfg(feature = "gog")]
+    pub fn gog_files<P>(&mut self, mut predicate: P) -> crate::gog::GogFiles<'_, R>
+    where
+        P: FnMut(&crate::gog::InstallerFile) -> bool,
+    {
+        let plan: Vec<_> = crate::gog::files(self.file_entries())
+            .into_iter()
+            .filter(|file| predicate(file))
+            .collect();
+
+        let wanted: std::collections::BTreeSet<usize> =
+            plan.iter().flat_map(|file| file.parts()).copied().collect();
+
+        crate::gog::GogFiles::new(
+            self.streaming_files(move |entry| wanted.contains(&entry.index())),
+            plan,
+        )
     }
 }

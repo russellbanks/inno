@@ -35,6 +35,7 @@ extract = ["dep:sha2", "dep:md5", "dep:sha1", "dep:simd-adler32"]
 # location for re-reading it, which is free on an installer that gives each
 # file its own chunk and costs a chunk's decode on a solid one.
 streaming-filtered-files = ["extract"]
+gog = ["extract", "dep:md5"]
 jiff = ["dep:jiff", "nt-time/jiff"]
 
 [dev-dependencies]

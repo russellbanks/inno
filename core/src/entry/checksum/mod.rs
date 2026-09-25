@@ -1,4 +1,6 @@
 mod error;
+#[cfg(feature = "extract")]
+mod hasher;
 mod md5;
 mod sha1;
 mod sha256;
@@ -7,6 +9,8 @@ use core::fmt;
 use std::io;
 
 pub use error::ChecksumMismatchError;
+#[cfg(feature = "extract")]
+pub(crate) use hasher::ChecksumHasher;
 pub use md5::Md5;
 pub use sha1::Sha1;
 pub use sha256::Sha256;

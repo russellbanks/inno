@@ -44,6 +44,11 @@ pub enum InnoError {
     #[cfg(feature = "extract")]
     #[error("File location index {index} is out of bounds (max: {max})")]
     FileLocationOutOfBounds { index: u32, max: usize },
+    #[error(
+        "Slices per disk is {0}, outside the 1 to {max} that Inno Setup allows",
+        max = crate::slice::SlicesPerDisk::MAX
+    )]
+    InvalidSlicesPerDisk(u32),
     #[error(transparent)]
     Io(#[from] io::Error),
 }

@@ -14,6 +14,8 @@ mod yes_no;
 
 use std::{fmt, io};
 
+use crate::error::InnoError;
+
 pub use architecture::{Architecture, StoredArchitecture};
 pub use auto_bool::AutoBool;
 pub use compression::Compression;
@@ -99,7 +101,7 @@ pub struct Header {
     wizard: WizardSettings,
     encryption_header: Option<EncryptionHeader>,
     extra_disk_space_required: u64,
-    slices_per_disk: u32,
+    slices_per_disk: crate::slice::SlicesPerDisk,
     install_verbosity: InstallVerbosity,
     uninstall_log_mode: LogMode,
     uninstall_style: WizardStyle,
@@ -308,10 +310,13 @@ impl Header {
 
         if version >= 4 {
             header.extra_disk_space_required = reader.read_u64::<LE>()?;
-            header.slices_per_disk = reader.read_u32::<LE>()?;
+            let slices_per_disk = reader.read_u32::<LE>()?;
+            header.slices_per_disk = slices_per_disk
+                .try_into()
+                .map_err(InnoError::InvalidSlicesPerDisk)?;
         } else {
             header.extra_disk_space_required = u64::from(reader.read_u32::<LE>()?);
-            header.slices_per_disk = 1;
+            header.slices_per_disk = crate::slice::SlicesPerDisk::default();
         }
         if (2..5).contains(&version) || (version.is_isx() && version >= (1, 3, 4)) {
             header.install_verbosity = InstallVerbosity::try_read_from_io(&mut reader)?;
@@ -1203,6 +1208,10 @@ impl Header {
     #[must_use]
     #[inline]
     pub const fn slices_per_disk(&self) -> u32 {
+        self.slices_per_disk.get()
+    }
+
+    pub(crate) const fn slices_per_disk_checked(&self) -> crate::slice::SlicesPerDisk {
         self.slices_per_disk
     }
 

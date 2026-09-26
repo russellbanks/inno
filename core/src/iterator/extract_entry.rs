@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use crate::entry::{File, FileLocation};
 
 /// A file to extract, pairing the logical file entry with its location metadata.
@@ -37,21 +35,5 @@ impl ExtractEntry {
     #[inline]
     pub const fn file_location(&self) -> &FileLocation {
         &self.location
-    }
-}
-
-impl PartialOrd for ExtractEntry {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for ExtractEntry {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.file_location()
-            .file()
-            .offset()
-            .cmp(&other.file_location().file().offset())
-            .then_with(|| self.location_index().cmp(&other.location_index()))
     }
 }

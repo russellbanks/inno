@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, VecDeque},
     io,
     io::{Read, Seek},
 };
@@ -59,8 +59,8 @@ impl<R: Read + Seek> Read for FilesReader<'_, R> {
 pub struct FilteredFilesIterator<'reader, R: Read + Seek> {
     reader: FilesReader<'reader, R>,
     data_offset: u64,
-    chunks: BTreeMap<u64, BTreeSet<ExtractEntry>>,
-    entries: BTreeSet<ExtractEntry>,
+    chunks: BTreeMap<u64, VecDeque<ExtractEntry>>,
+    entries: VecDeque<ExtractEntry>,
     current_position: u64,
     previous_location_index: Option<u32>,
     data: Vec<u8>,
@@ -72,7 +72,7 @@ impl<'reader, R: Read + Seek> FilteredFilesIterator<'reader, R> {
         P: FnMut(&ExtractEntry) -> bool,
     {
         // Group entries by their chunk start offset to allow for sequential extraction
-        let mut chunks = BTreeMap::<_, BTreeSet<_>>::new();
+        let mut chunks = BTreeMap::<_, Vec<ExtractEntry>>::new();
 
         for file in inno.file_entries() {
             let Some(location) = inno.file_locations().get(file.location() as usize) else {
@@ -85,9 +85,26 @@ impl<'reader, R: Read + Seek> FilteredFilesIterator<'reader, R> {
                 chunks
                     .entry(location.chunk().start_offset())
                     .or_default()
-                    .insert(extract_entry);
+                    .push(extract_entry);
             }
         }
+
+        // Read order within a chunk is by position, so that the reader only
+        // ever moves forward. A sequence rather than a set: two entries can
+        // name one location, and a set keyed on this order would treat the
+        // second as a duplicate and drop it.
+        let chunks = chunks
+            .into_iter()
+            .map(|(offset, mut entries)| {
+                entries.sort_by_key(|entry| {
+                    (
+                        entry.file_location().file().offset(),
+                        entry.location_index(),
+                    )
+                });
+                (offset, VecDeque::from(entries))
+            })
+            .collect();
 
         Self {
             reader: FilesReader::Source(Some(&mut inno.reader)),
@@ -97,7 +114,7 @@ impl<'reader, R: Read + Seek> FilteredFilesIterator<'reader, R> {
                 .data_offset()
                 .try_into()
                 .unwrap_or_else(|_| unreachable!()),
-            entries: BTreeSet::new(),
+            entries: VecDeque::new(),
             chunks,
             current_position: 0,
             previous_location_index: None,
@@ -110,12 +127,12 @@ impl<R: Read + Seek> Iterator for FilteredFilesIterator<'_, R> {
     type Item = InnoResult<(ExtractEntry, Vec<u8>)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let entry = if let Some(entry) = self.entries.pop_first() {
+        let entry = if let Some(entry) = self.entries.pop_front() {
             entry
         } else {
             self.entries = self.chunks.pop_first().map(|(_, entries)| entries)?;
 
-            let entry = self.entries.pop_first()?;
+            let entry = self.entries.pop_front()?;
 
             if let Err(err) = self
                 .reader
@@ -183,7 +200,7 @@ impl<R: Read + Seek> Iterator for FilteredFilesIterator<'_, R> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.chunks.values().map(BTreeSet::len).sum::<usize>() + self.entries.len();
+        let remaining = self.chunks.values().map(VecDeque::len).sum::<usize>() + self.entries.len();
         (remaining, Some(remaining))
     }
 }

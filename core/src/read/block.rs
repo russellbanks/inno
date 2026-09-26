@@ -90,18 +90,26 @@ impl<R: io::Read> InnoBlockReader<R> {
 
         self.total_in += size_of::<u32>();
 
-        self.length = self.inner.read(&mut self.buffer)?;
+        let mut length = 0;
+        while length < self.buffer.len() {
+            match self.inner.read(&mut self.buffer[length..]) {
+                Ok(0) => break,
+                Ok(read) => length += read,
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                Err(error) => return Err(error),
+            }
+        }
 
-        self.total_in += self.length;
+        self.total_in += length;
 
-        if self.length == 0 {
+        if length == 0 {
             return Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "Unexpected Inno block end",
             ));
         }
 
-        let actual_crc32 = crc32fast::hash(&self.buffer[..self.length]);
+        let actual_crc32 = crc32fast::hash(&self.buffer[..length]);
 
         if actual_crc32 != block_crc32 {
             return Err(io::Error::new(
@@ -113,6 +121,7 @@ impl<R: io::Read> InnoBlockReader<R> {
             ));
         }
 
+        self.length = length;
         self.pos = 0;
 
         Ok(true)
@@ -140,5 +149,130 @@ impl<R: io::Read> io::Read for InnoBlockReader<R> {
         self.total_out += total_read;
 
         Ok(total_read)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Read;
+
+    use super::{INNO_BLOCK_SIZE, InnoBlockReader};
+
+    /// A reader that never returns bytes from two sides of a window
+    /// boundary in one call, which is how a `BufReader` behaves: it hands
+    /// back what its buffer currently holds and no more. `io::Read` allows
+    /// this, and the default 8 KiB buffer means a 4 KiB block lands across a
+    /// boundary as soon as the stream is not aligned to it, which the four
+    /// checksum bytes in front of every block guarantee.
+    struct WindowedReader {
+        data: Vec<u8>,
+        pos: usize,
+        window: usize,
+    }
+
+    impl std::io::Read for WindowedReader {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            let until_boundary = self.window - (self.pos % self.window);
+            let take = buf
+                .len()
+                .min(until_boundary)
+                .min(self.data.len() - self.pos);
+            buf[..take].copy_from_slice(&self.data[self.pos..self.pos + take]);
+            self.pos += take;
+            Ok(take)
+        }
+    }
+
+    impl WindowedReader {
+        fn new(data: Vec<u8>) -> Self {
+            Self {
+                data,
+                pos: 0,
+                window: 8 * 1024,
+            }
+        }
+    }
+
+    /// Builds the on-disk form of a block: its CRC32, then its bytes.
+    fn block(payload: &[u8]) -> Vec<u8> {
+        let mut out = crc32fast::hash(payload).to_le_bytes().to_vec();
+        out.extend_from_slice(payload);
+        out
+    }
+
+    #[test]
+    fn a_block_split_across_two_reads_is_still_read_whole() {
+        // The second block is the one that straddles a boundary here, which
+        // is why one block on its own never showed this.
+        let first = vec![0xAB; INNO_BLOCK_SIZE as usize];
+        let second = vec![0xCD; INNO_BLOCK_SIZE as usize];
+        let mut data = block(&first);
+        data.extend_from_slice(&block(&second));
+
+        let mut reader = InnoBlockReader::new(WindowedReader::new(data));
+
+        let mut out = Vec::new();
+        reader.read_to_end(&mut out).expect("short reads are legal");
+
+        assert_eq!(out.len(), first.len() + second.len());
+        assert!(out[..first.len()].iter().all(|&b| b == 0xAB));
+        assert!(out[first.len()..].iter().all(|&b| b == 0xCD));
+    }
+
+    #[test]
+    fn a_short_final_block_still_ends_the_stream_cleanly() {
+        // Filling the buffer must not turn a legitimately short last block
+        // into an error: the fill stops at end of stream, not only when the
+        // buffer is full.
+        let first = vec![0xAB; INNO_BLOCK_SIZE as usize];
+        let last = vec![0xCD; 100];
+        let mut data = block(&first);
+        data.extend_from_slice(&block(&last));
+
+        let mut reader = InnoBlockReader::new(WindowedReader::new(data));
+
+        let mut out = Vec::new();
+        reader.read_to_end(&mut out).unwrap();
+
+        assert_eq!(out.len(), first.len() + last.len());
+        assert_eq!(reader.total_out(), first.len() + last.len());
+    }
+
+    #[test]
+    fn a_block_that_fails_its_checksum_does_not_serve_its_bytes_anyway() {
+        // A block is published only once its checksum agrees. Published
+        // first, a failed block leaves a length that does not belong with
+        // the position, and the next read either serves buffer contents
+        // nobody validated or subtracts past zero working out how many of
+        // them to serve.
+        let first = vec![0xAB; INNO_BLOCK_SIZE as usize];
+        let mut data = block(&first);
+        let mut corrupt = block(&vec![0xCD; INNO_BLOCK_SIZE as usize]);
+        corrupt[0] ^= 0xFF;
+        data.extend_from_slice(&corrupt);
+
+        let mut reader = InnoBlockReader::new(WindowedReader::new(data));
+
+        let mut out = vec![0; INNO_BLOCK_SIZE as usize];
+        reader
+            .read_exact(&mut out)
+            .expect("the first block is good");
+
+        let mut more = [0; 16];
+        assert!(
+            reader.read(&mut more).is_err(),
+            "the corrupt block must error"
+        );
+        assert_eq!(
+            reader.total_out(),
+            first.len(),
+            "nothing from the corrupt block may be counted as produced"
+        );
+
+        // Reading on after the error is what the LZMA decoder above this
+        // does, so it is not a hypothetical. The corrupt block was consumed
+        // on the way to failing, so there is nothing left and this reports a
+        // clean end; the point is that it reports at all.
+        assert_eq!(reader.read(&mut more).unwrap(), 0);
     }
 }

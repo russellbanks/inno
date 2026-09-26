@@ -139,6 +139,8 @@ pub use error::InnoResult;
 pub use header::Header;
 #[cfg(feature = "extract")]
 use iterator::{ExtractEntry, FilesIterator, FilteredFilesIterator};
+#[cfg(feature = "extract")]
+pub use iterator::{FileReader, StreamingFiles};
 use itertools::Itertools;
 use loader::SetupLoader;
 use lzma_stream_header::LzmaStreamHeader;
@@ -715,5 +717,28 @@ impl<R: Read + Seek> Inno<R> {
         P: FnMut(&ExtractEntry) -> bool,
     {
         FilteredFilesIterator::new(self, predicate)
+    }
+
+    /// Returns an iterator over matching files, reading each one as a stream.
+    ///
+    /// Unlike [`filtered_files`], which yields each file's bytes as a `Vec`,
+    /// this holds nothing larger than a fixed buffer. It is not an
+    /// [`Iterator`]: the [`FileReader`] it yields borrows the iterator, so
+    /// only one can exist at a time, which no `Iterator` can express.
+    ///
+    /// The checksum is verified as the bytes are read, so a mismatch is only
+    /// reported at the end, once the caller already has them. Use
+    /// [`filtered_files`] where that matters.
+    ///
+    /// Reading one byte still pulls 64 KiB from the chunk, so this is not a
+    /// cheap way to peek at the start of a file.
+    ///
+    /// [`filtered_files`]: Self::filtered_files
+    #[cfg(feature = "extract")]
+    pub fn streaming_files<P>(&mut self, predicate: P) -> StreamingFiles<'_, R>
+    where
+        P: FnMut(&ExtractEntry) -> bool,
+    {
+        StreamingFiles::new(self, predicate)
     }
 }

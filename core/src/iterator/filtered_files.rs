@@ -6,15 +6,15 @@ use std::{
 };
 
 use crate::{
-    Inno,
+    Inno, Source,
     error::{InnoError, InnoResult},
     iterator::ExtractEntry,
-    read::{chunk::Chunk, data_chunk::DataChunkReader},
+    read::{Embedded, chunk::Chunk, data_chunk::DataChunkReader},
 };
 
 enum FilesReader<'reader, R: Read + Seek> {
-    Source(Option<&'reader mut R>),
-    Chunk(Option<DataChunkReader<&'reader mut R>>),
+    Source(Option<Source<'reader, R>>),
+    Chunk(Option<DataChunkReader<Source<'reader, R>>>),
 }
 
 impl<R: Read + Seek> FilesReader<'_, R> {
@@ -29,20 +29,20 @@ impl<R: Read + Seek> FilesReader<'_, R> {
         self
     }
 
-    pub fn to_chunk_mut(&mut self, data_offset: u64, chunk: &Chunk) -> InnoResult<&mut Self> {
+    pub fn to_chunk_mut(&mut self, chunk: &Chunk) -> InnoResult<&mut Self> {
         if let Self::Source(reader) = self
             && let Some(reader) = reader.take()
         {
-            let chunk_reader = DataChunkReader::new(reader, data_offset, chunk)?;
+            let chunk_reader = DataChunkReader::new(reader, chunk)?;
             *self = FilesReader::Chunk(Some(chunk_reader));
         }
 
         Ok(self)
     }
 
-    pub fn reinitialize(&mut self, data_offset: u64, chunk: &Chunk) -> InnoResult<&mut Self> {
+    pub fn reinitialize(&mut self, chunk: &Chunk) -> InnoResult<&mut Self> {
         self.to_source_mut();
-        self.to_chunk_mut(data_offset, chunk)
+        self.to_chunk_mut(chunk)
     }
 }
 
@@ -58,7 +58,6 @@ impl<R: Read + Seek> Read for FilesReader<'_, R> {
 
 pub struct FilteredFilesIterator<'reader, R: Read + Seek> {
     reader: FilesReader<'reader, R>,
-    data_offset: u64,
     chunks: BTreeMap<u64, VecDeque<ExtractEntry>>,
     entries: VecDeque<ExtractEntry>,
     current_position: u64,
@@ -106,14 +105,20 @@ impl<'reader, R: Read + Seek> FilteredFilesIterator<'reader, R> {
             })
             .collect();
 
+        let data_offset = inno
+            .inner
+            .setup_loader
+            .data_offset()
+            .try_into()
+            .unwrap_or_else(|_| unreachable!());
+
+        let source = match inno.slices.as_mut() {
+            Some(slices) => Source::Slices(slices),
+            None => Source::Embedded(Embedded::new(&mut inno.reader, data_offset)),
+        };
+
         Self {
-            reader: FilesReader::Source(Some(&mut inno.reader)),
-            data_offset: inno
-                .inner
-                .setup_loader
-                .data_offset()
-                .try_into()
-                .unwrap_or_else(|_| unreachable!()),
+            reader: FilesReader::Source(Some(source)),
             entries: VecDeque::new(),
             chunks,
             current_position: 0,
@@ -134,10 +139,7 @@ impl<R: Read + Seek> Iterator for FilteredFilesIterator<'_, R> {
 
             let entry = self.entries.pop_front()?;
 
-            if let Err(err) = self
-                .reader
-                .reinitialize(self.data_offset, entry.file_location().chunk())
-            {
+            if let Err(err) = self.reader.reinitialize(entry.file_location().chunk()) {
                 return Some(Err(err));
             }
 

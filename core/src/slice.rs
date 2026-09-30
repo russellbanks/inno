@@ -20,11 +20,13 @@
 use std::{
     fs::File,
     io::{self, BufReader, Read, Seek, SeekFrom},
+    num::NonZeroU8,
     path::{Path, PathBuf},
 };
 
-use crate::read::ReadBytesExt;
 use zerocopy::LE;
+
+use crate::read::{DataSource, ReadBytesExt};
 
 /// The first bytes of every slice file. The two spellings are the 16-bit and
 /// 32-bit builds of Inno Setup, and nothing else about them differs.
@@ -38,7 +40,7 @@ const HEADER_SIZE: u64 = 12;
 /// How many slice files one disk is split into. Inno Setup's `SlicesPerDisk`
 /// directive takes 1 to 26, the range a single letter can name.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct SlicesPerDisk(u8);
+pub(crate) struct SlicesPerDisk(NonZeroU8);
 
 impl SlicesPerDisk {
     /// The largest the directive allows: with 26 files on a disk the last is
@@ -47,7 +49,7 @@ impl SlicesPerDisk {
 
     #[must_use]
     pub const fn get(self) -> u32 {
-        self.0 as u32
+        self.0.get() as u32
     }
 
     /// The disk `slice` belongs to, numbered from one.
@@ -65,7 +67,7 @@ impl SlicesPerDisk {
 
 impl Default for SlicesPerDisk {
     fn default() -> Self {
-        Self(1)
+        Self(NonZeroU8::MIN)
     }
 }
 
@@ -74,9 +76,10 @@ impl TryFrom<u32> for SlicesPerDisk {
 
     /// Fails with the value itself, for an error that can name it.
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        match value {
-            1..=Self::MAX => Ok(Self(value as u8)),
-            other => Err(other),
+        match NonZeroU8::new(value as u8) {
+            Some(value) if value.get() <= Self::MAX as u8 => Ok(Self(value)),
+            Some(other) => Err(other.get().into()),
+            None => Err(u32::MIN),
         }
     }
 }
@@ -226,7 +229,7 @@ impl Slices {
     }
 }
 
-impl crate::read::DataSource for Slices {
+impl DataSource for Slices {
     fn seek_to(&mut self, slice: u32, offset: u64) -> io::Result<()> {
         let open = self.open(slice)?;
 

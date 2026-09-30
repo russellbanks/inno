@@ -126,8 +126,9 @@ pub mod version;
 mod wizard;
 
 use std::{
-    io,
+    fs, io,
     io::{Read, Seek, SeekFrom},
+    path::Path,
 };
 
 use encoding_rs::{UTF_16LE, WINDOWS_1252};
@@ -492,7 +493,7 @@ pub struct Inno<R: Read + Seek> {
     reader: R,
     /// The `.bin` files beside the installer, when its data is not in the
     /// executable.
-    slices: Option<crate::slice::Slices>,
+    slices: Option<slice::Slices>,
     pub inner: InnoInner,
 }
 
@@ -500,8 +501,8 @@ pub struct Inno<R: Read + Seek> {
 /// slices beside it.
 #[cfg(feature = "extract")]
 pub(crate) enum Source<'a, R> {
-    Embedded(crate::read::Embedded<&'a mut R>),
-    Slices(&'a mut crate::slice::Slices),
+    Embedded(read::Embedded<&'a mut R>),
+    Slices(&'a mut slice::Slices),
 }
 
 #[cfg(feature = "extract")]
@@ -515,7 +516,7 @@ impl<R: Read + Seek> Read for Source<'_, R> {
 }
 
 #[cfg(feature = "extract")]
-impl<R: Read + Seek> crate::read::DataSource for Source<'_, R> {
+impl<R: Read + Seek> read::DataSource for Source<'_, R> {
     fn seek_to(&mut self, slice: u32, offset: u64) -> io::Result<()> {
         match self {
             Self::Embedded(source) => source.seek_to(slice, offset),
@@ -524,7 +525,7 @@ impl<R: Read + Seek> crate::read::DataSource for Source<'_, R> {
     }
 }
 
-impl Inno<io::BufReader<std::fs::File>> {
+impl Inno<io::BufReader<fs::File>> {
     /// Reads the installer at `path`, and finds the `.bin` slices beside it
     /// if its data is not in the executable.
     ///
@@ -538,9 +539,9 @@ impl Inno<io::BufReader<std::fs::File>> {
     ///
     /// [`new`]: Self::new
     /// [`located_at`]: Self::located_at
-    pub fn open(path: impl AsRef<std::path::Path>) -> InnoResult<Self> {
+    pub fn open(path: impl AsRef<Path>) -> InnoResult<Self> {
         let path = path.as_ref();
-        let reader = io::BufReader::new(std::fs::File::open(path)?);
+        let reader = io::BufReader::new(fs::File::open(path)?);
         Ok(Self::new(reader)?.located_at(path))
     }
 }
@@ -599,9 +600,9 @@ impl<R: Read + Seek> Inno<R> {
     ///
     /// [`new`]: Self::new
     /// [`open`]: Self::open
-    pub fn located_at(mut self, path: &std::path::Path) -> Self {
+    pub fn located_at(mut self, path: &Path) -> Self {
         if self.inner.setup_loader.data_offset() == 0 {
-            self.slices = Some(crate::slice::Slices::beside_named(
+            self.slices = Some(slice::Slices::beside_named(
                 path,
                 self.inner.header.base_filename(),
                 self.inner.header.slices_per_disk_checked(),

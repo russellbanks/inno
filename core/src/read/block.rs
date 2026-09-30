@@ -170,7 +170,7 @@ mod tests {
         window: usize,
     }
 
-    impl std::io::Read for WindowedReader {
+    impl Read for WindowedReader {
         fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
             let until_boundary = self.window - (self.pos % self.window);
             let take = buf

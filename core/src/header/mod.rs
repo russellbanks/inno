@@ -14,8 +14,6 @@ mod yes_no;
 
 use std::{fmt, io};
 
-use crate::error::InnoError;
-
 pub use architecture::{Architecture, StoredArchitecture};
 pub use auto_bool::AutoBool;
 pub use compression::Compression;
@@ -34,8 +32,12 @@ use zerocopy::LE;
 
 use super::{InnoVersion, WindowsVersionRange, read::ReadBytesExt};
 use crate::{
-    encryption::EncryptionHeader, entry::Checksum, error::InnoResult,
-    header::wizard::LightControlStyling, string::PascalString,
+    encryption::EncryptionHeader,
+    entry::Checksum,
+    error::{InnoError, InnoResult},
+    header::wizard::LightControlStyling,
+    slice::SlicesPerDisk,
+    string::PascalString,
 };
 
 // https://github.com/jrsoftware/issrc/blob/main/Projects/Src/Shared.Struct.pas
@@ -101,7 +103,7 @@ pub struct Header {
     wizard: WizardSettings,
     encryption_header: Option<EncryptionHeader>,
     extra_disk_space_required: u64,
-    slices_per_disk: crate::slice::SlicesPerDisk,
+    slices_per_disk: SlicesPerDisk,
     install_verbosity: InstallVerbosity,
     uninstall_log_mode: LogMode,
     uninstall_style: WizardStyle,
@@ -316,7 +318,7 @@ impl Header {
                 .map_err(InnoError::InvalidSlicesPerDisk)?;
         } else {
             header.extra_disk_space_required = u64::from(reader.read_u32::<LE>()?);
-            header.slices_per_disk = crate::slice::SlicesPerDisk::default();
+            header.slices_per_disk = SlicesPerDisk::default();
         }
         if (2..5).contains(&version) || (version.is_isx() && version >= (1, 3, 4)) {
             header.install_verbosity = InstallVerbosity::try_read_from_io(&mut reader)?;
@@ -1211,7 +1213,7 @@ impl Header {
         self.slices_per_disk.get()
     }
 
-    pub(crate) const fn slices_per_disk_checked(&self) -> crate::slice::SlicesPerDisk {
+    pub(crate) const fn slices_per_disk_checked(&self) -> SlicesPerDisk {
         self.slices_per_disk
     }
 

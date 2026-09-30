@@ -76,11 +76,12 @@ impl TryFrom<u32> for SlicesPerDisk {
 
     /// Fails with the value itself, for an error that can name it.
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        match NonZeroU8::new(value as u8) {
-            Some(value) if value.get() <= Self::MAX as u8 => Ok(Self(value)),
-            Some(other) => Err(other.get().into()),
-            None => Err(u32::MIN),
-        }
+        u8::try_from(value)
+            .ok()
+            .filter(|&narrowed| u32::from(narrowed) <= Self::MAX)
+            .and_then(NonZeroU8::new)
+            .map(Self)
+            .ok_or(value)
     }
 }
 
@@ -296,6 +297,25 @@ mod tests {
         assert!(SlicesPerDisk::try_from(1).is_ok());
         assert!(SlicesPerDisk::try_from(SlicesPerDisk::MAX).is_ok());
         assert_eq!(SlicesPerDisk::try_from(SlicesPerDisk::MAX + 1), Err(27));
+    }
+
+    /// A value is rejected on what the header says, not on its low byte. 257
+    /// and 282 are the ends of the range that folds onto 1 and 26.
+    #[test]
+    fn a_value_past_the_range_is_not_wrapped_into_it() {
+        for value in [
+            256,
+            257,
+            282,
+            283,
+            512,
+            513,
+            538,
+            u32::from(u8::MAX) + 1 + SlicesPerDisk::MAX,
+            u32::MAX,
+        ] {
+            assert_eq!(SlicesPerDisk::try_from(value), Err(value));
+        }
     }
 
     #[test]

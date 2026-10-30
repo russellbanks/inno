@@ -30,6 +30,7 @@ simd-adler32 = { version = "0.3", optional = true, default-features = false, fea
 [features]
 chrono = ["dep:chrono", "nt-time/chrono"]
 extract = ["dep:sha2", "dep:md5", "dep:sha1", "dep:simd-adler32"]
+gog = ["extract", "dep:md5"]
 jiff = ["dep:jiff", "nt-time/jiff"]
 
 [dev-dependencies]

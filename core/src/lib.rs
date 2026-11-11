@@ -159,7 +159,7 @@ pub use zerocopy;
 ///
 /// Inno Setup versions newer than this version are likely to have breaking changes where the
 /// changes have not yet been implemented into this library.
-pub const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(7, 0, u8::MAX, u8::MAX);
+pub const MAX_SUPPORTED_VERSION: InnoVersion = InnoVersion::new(7, 1, u8::MAX, u8::MAX);
 
 #[derive(Debug)]
 pub struct InnoInner {

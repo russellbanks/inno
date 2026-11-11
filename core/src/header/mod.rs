@@ -154,7 +154,9 @@ impl Header {
         if version < 3 {
             header.uninstall_icon_name = reader.read_decoded_pascal_string(WINDOWS_1252)?;
         }
-        header.base_filename = reader.read_pascal_string()?;
+        if version < (7, 1, 1) {
+            header.base_filename = reader.read_pascal_string()?;
+        }
         if ((1, 3, 0)..(5, 2, 5)).contains(&version) {
             header.license_text = reader.read_decoded_pascal_string(WINDOWS_1252)?;
             header.info_before = reader.read_decoded_pascal_string(WINDOWS_1252)?;

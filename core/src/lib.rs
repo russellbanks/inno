@@ -94,7 +94,7 @@ older installers.
 
 # Minimum Supported Rust Version (MSRV)
 
-This crate is tested with Rust 1.88 or newer. Newer Rust versions are generally recommended.
+This crate is tested with Rust 1.93 or newer. Newer Rust versions are generally recommended.
 
 # Acknowledgements
 

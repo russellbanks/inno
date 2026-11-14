@@ -298,13 +298,14 @@ impl InnoVersion {
     /// version and therefore may not actually be the true version.
     #[must_use]
     pub fn is_ambiguous(&self) -> bool {
-        const AMBIGUOUS_VERSIONS: [InnoVersion; 9] = [
+        const AMBIGUOUS_VERSIONS: [InnoVersion; 10] = [
             InnoVersion::new(1, 3, 21, 0), // 1.3.21 or 1.3.24
             InnoVersion::new(2, 0, 1, 0),  // 2.0.1 or 2.0.2
             InnoVersion::new(3, 0, 3, 0),  // 3.0.3 or 3.0.4
             InnoVersion::new(4, 2, 3, 0),  // 4.2.3 or 4.2.4
             InnoVersion::new(5, 3, 10, 0), // 5.3.10 or 5.3.10.1
             InnoVersion::new(5, 4, 2, 0),  // 5.4.2 or 5.4.2.1
+            InnoVersion::new(5, 4, 3, 0),  // 5.4.3 or 5.4.3.1
             InnoVersion::new(5, 5, 0, 0),  // 5.5.0 or 5.5.0.1
             InnoVersion::new(5, 5, 7, 0),  // 5.5.7 or 5.6.0
             InnoVersion::new(5, 5, 7, 1),  // 5.5.7 or unknown modification
@@ -316,9 +317,10 @@ impl InnoVersion {
     /// Returns `true` if the version is a `BlackBox` V2 version.
     #[must_use]
     pub fn is_blackbox(&self) -> bool {
-        const BLACKBOX_VERSIONS: [InnoVersion; 3] = [
+        const BLACKBOX_VERSIONS: [InnoVersion; 4] = [
             InnoVersion::new(5, 3, 10, 0),
             InnoVersion::new(5, 4, 2, 0),
+            InnoVersion::new(5, 4, 3, 0),
             InnoVersion::new(5, 5, 0, 0),
         ];
 
@@ -373,6 +375,13 @@ impl InnoVersion {
                 revision: 0,
                 ..
             } => Some(vec![Self::new_with_variant(5, 4, 2, 1, self.variant)]),
+            Self {
+                major: 5,
+                minor: 4,
+                patch: 3,
+                revision: 0,
+                ..
+            } => Some(vec![Self::new_with_variant(5, 4, 3, 1, self.variant)]),
             Self {
                 major: 5,
                 minor: 5,

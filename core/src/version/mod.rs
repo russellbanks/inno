@@ -303,10 +303,10 @@ impl InnoVersion {
             InnoVersion::new(2, 0, 1, 0),  // 2.0.1 or 2.0.2
             InnoVersion::new(3, 0, 3, 0),  // 3.0.3 or 3.0.4
             InnoVersion::new(4, 2, 3, 0),  // 4.2.3 or 4.2.4
-            InnoVersion::new(5, 3, 10, 0), // 5.3.10 or 5.3.10.1
-            InnoVersion::new(5, 4, 2, 0),  // 5.4.2 or 5.4.2.1
-            InnoVersion::new(5, 4, 3, 0),  // 5.4.3 or 5.4.3.1
-            InnoVersion::new(5, 5, 0, 0),  // 5.5.0 or 5.5.0.1
+            InnoVersion::new(5, 3, 10, 0), // 5.3.10 or 5.3.10.1 (BlackBox)
+            InnoVersion::new(5, 4, 2, 0),  // 5.4.2 or 5.4.2.1 (BlackBox)
+            InnoVersion::new(5, 4, 3, 0),  // 5.4.3 or 5.4.3.1 (BlackBox)
+            InnoVersion::new(5, 5, 0, 0),  // 5.5.0 or 5.5.0.1 (BlackBox)
             InnoVersion::new(5, 5, 7, 0),  // 5.5.7 or 5.6.0
             InnoVersion::new(5, 5, 7, 1),  // 5.5.7 or unknown modification
         ];
@@ -315,13 +315,16 @@ impl InnoVersion {
     }
 
     /// Returns `true` if the version is a `BlackBox` V2 version.
+    ///
+    /// `BlackBox` builds use the same version string as the unmodified release, so they are
+    /// only detected when parsing as the unmodified release fails and revision 1 is tried.
     #[must_use]
     pub fn is_blackbox(&self) -> bool {
         const BLACKBOX_VERSIONS: [InnoVersion; 4] = [
-            InnoVersion::new(5, 3, 10, 0),
-            InnoVersion::new(5, 4, 2, 0),
-            InnoVersion::new(5, 4, 3, 0),
-            InnoVersion::new(5, 5, 0, 0),
+            InnoVersion::new(5, 3, 10, 1),
+            InnoVersion::new(5, 4, 2, 1),
+            InnoVersion::new(5, 4, 3, 1),
+            InnoVersion::new(5, 5, 0, 1),
         ];
 
         BLACKBOX_VERSIONS.contains(self)

@@ -324,7 +324,7 @@ impl InnoVersion {
             InnoVersion::new(5, 5, 0, 0),
         ];
 
-        self.is_unicode() && BLACKBOX_VERSIONS.contains(self)
+        BLACKBOX_VERSIONS.contains(self)
     }
 
     pub(crate) fn ambiguous_candidates(self) -> Option<Vec<Self>> {

@@ -488,6 +488,7 @@ impl Header {
             if version >= (3, 0, 1) => HeaderFlags::UNINSTALL_RESTART_COMPUTER,
             if version >= (3, 0, 3) => HeaderFlags::RESTART_IF_NEEDED_BY_RUN,
             if version >= 4 || (version.is_isx() && version >= (3, 0, 3)) => HeaderFlags::SHOW_TASKS_TREE_LINES,
+            if ((4, 0, 0)..(4, 0, 10)).contains(&version) => HeaderFlags::SHOW_LANGUAGE_DIALOG,
             if ((4, 0, 1)..(4, 0, 10)).contains(&version) => HeaderFlags::DETECT_LANGUAGE_USING_LOCALE,
             if version >= (4, 0, 9) => HeaderFlags::ALLOW_CANCEL_DURING_INSTALL,
             if version >= (4, 1, 3) => HeaderFlags::WIZARD_IMAGE_STRETCH,

@@ -54,7 +54,8 @@ impl Wizard {
             wizard.decompressor_dll = reader.read_raw_pascal_string()?;
         }
 
-        if header.flags.contains(HeaderFlags::ENCRYPTION_USED) {
+        // Inno Setup 6.4 replaced ISCrypt.dll with built-in encryption
+        if version < 6.4 && header.flags.contains(HeaderFlags::ENCRYPTION_USED) {
             wizard.decrypt_dll = reader.read_raw_pascal_string()?;
         }
 

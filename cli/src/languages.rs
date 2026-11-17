@@ -17,7 +17,7 @@ use ratatui::{
 };
 
 use super::emoji::Emoji;
-use crate::constraint::{int_constraint, ints_constraint, strings_constraint};
+use crate::constraint::{index_width, width};
 
 const NAME: &str = "Name";
 const LANGUAGE_NAME: &str = "Language name";
@@ -144,49 +144,33 @@ impl Widget for &mut Languages<'_> {
 
 fn constraints(languages: &[Language]) -> [Constraint; 8] {
     [
-        Max(int_constraint(languages.len())),
-        Max(strings_constraint(
-            languages.iter().map(Language::name),
-            NAME,
-        )),
-        Max(strings_constraint(
-            languages.iter().map(Language::language_name),
+        Max(index_width(languages.len())),
+        Max(width(NAME, languages.iter().map(Language::name))),
+        Max(width(
             LANGUAGE_NAME,
+            languages.iter().map(Language::language_name),
         )),
-        Max(ints_constraint(languages.iter().map(Language::id), ID)),
-        Max(strings_constraint(
-            languages.iter().map(|language| language.codepage().name()),
+        Max(width(ID, languages.iter().map(Language::id))),
+        Max(width(
             CODEPAGE,
+            languages.iter().map(|language| language.codepage().name()),
         )),
-        Max(languages
-            .iter()
-            .map(|language| {
-                language.dialog_font().name().len()
-                    + language
-                        .dialog_font()
-                        .size()
-                        .checked_ilog10()
-                        .map(|log10| log10 + 1)
-                        .unwrap_or_default() as usize
-                    + " ()".len()
-            })
-            .max()
-            .map(|max_len| max_len.max(DIALOG_FONT.len()))
-            .unwrap_or_default() as u16),
-        Max(languages
-            .iter()
-            .map(|language| {
-                language.title_font().len()
-                    + language
-                        .title_font_size()
-                        .checked_ilog10()
-                        .map(|log10| log10 + 1)
-                        .unwrap_or_default() as usize
-                    + " ()".len()
-            })
-            .max()
-            .map(|max_len| max_len.max(TITLE_FONT.len()))
-            .unwrap_or_default() as u16),
+        Max(width(
+            DIALOG_FONT,
+            languages.iter().map(|language| {
+                format!(
+                    "{} ({})",
+                    language.dialog_font().name(),
+                    language.dialog_font().size()
+                )
+            }),
+        )),
+        Max(width(
+            TITLE_FONT,
+            languages.iter().map(|language| {
+                format!("{} ({})", language.title_font(), language.title_font_size())
+            }),
+        )),
         Max(RTL.len() as u16),
     ]
 }

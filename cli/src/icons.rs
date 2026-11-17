@@ -16,7 +16,7 @@ use ratatui::{
     },
 };
 
-use super::constraint::{flags_constraint, int_constraint, ints_constraint, strings_constraint};
+use super::constraint::{index_width, width};
 
 const NAME: &str = "Name";
 const FILENAME: &str = "Filename";
@@ -153,40 +153,52 @@ impl Widget for &mut Icons<'_> {
 
 fn constraints(icons: &[Icon]) -> [Constraint; 14] {
     [
-        Max(int_constraint(icons.len())),
-        Max(strings_constraint(icons.iter().map(Icon::name), NAME)),
-        Max(strings_constraint(
-            icons.iter().map(Icon::filename),
+        Max(index_width(icons.len())),
+        Max(width(
+            NAME,
+            icons.iter().map(|icon| icon.name().unwrap_or_default()),
+        )),
+        Max(width(
             FILENAME,
+            icons.iter().map(|icon| icon.filename().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            icons.iter().map(Icon::parameters),
+        Max(width(
             PARAMETERS,
+            icons
+                .iter()
+                .map(|icon| icon.parameters().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            icons.iter().map(Icon::working_directory),
+        Max(width(
             WORKING_DIRECTORY,
+            icons
+                .iter()
+                .map(|icon| icon.working_directory().unwrap_or_default()),
         )),
-        Max(strings_constraint(icons.iter().map(Icon::file), FILE)),
-        Max(strings_constraint(icons.iter().map(Icon::comment), COMMENT)),
-        Max(strings_constraint(
-            icons.iter().map(Icon::app_user_model_id),
+        Max(width(
+            FILE,
+            icons.iter().map(|icon| icon.file().unwrap_or_default()),
+        )),
+        Max(width(
+            COMMENT,
+            icons.iter().map(|icon| icon.comment().unwrap_or_default()),
+        )),
+        Max(width(
             APP_USER_MODEL_ID,
+            icons
+                .iter()
+                .map(|icon| icon.app_user_model_id().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            icons.iter().map(Icon::app_user_model_toast_activator_clsid),
+        Max(width(
             APP_USER_MODEL_TOAST_ACTIVATOR_CLSID,
+            icons.iter().map(Icon::app_user_model_toast_activator_clsid),
         )),
-        Max(ints_constraint(icons.iter().map(Icon::index), INDEX)),
-        Max(ints_constraint(
-            icons.iter().map(Icon::show_command),
-            SHOW_COMMAND,
-        )),
-        Max(strings_constraint(
-            icons.iter().map(|icon| icon.close_on_exit().as_str()),
+        Max(width(INDEX, icons.iter().map(Icon::index))),
+        Max(width(SHOW_COMMAND, icons.iter().map(Icon::show_command))),
+        Max(width(
             CLOSE_ON_EXIT,
+            icons.iter().map(|icon| icon.close_on_exit().as_str()),
         )),
-        Max(ints_constraint(icons.iter().map(Icon::hotkey), HOTKEY)),
-        Max(flags_constraint(icons.iter().map(Icon::flags), FLAGS)),
+        Max(width(HOTKEY, icons.iter().map(Icon::hotkey))),
+        Max(width(FLAGS, icons.iter().map(Icon::flags))),
     ]
 }

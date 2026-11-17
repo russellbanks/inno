@@ -17,7 +17,7 @@ use ratatui::{
 };
 
 use super::emoji::Emoji;
-use crate::constraint::{int_constraint, ints_constraint, strings_constraint};
+use crate::constraint::{index_width, width};
 
 const NAME: &str = "Name";
 const DESCRIPTION: &str = "Description";
@@ -110,6 +110,7 @@ impl Widget for &mut Types<'_> {
                 Cow::Borrowed(r#type.check().unwrap_or_default()),
                 Cow::Borrowed(r#type.is_custom().emoji()),
                 Cow::Borrowed(r#type.setup().as_str()),
+                Cow::Owned(r#type.size().to_string()),
             ])
         });
 
@@ -134,22 +135,34 @@ impl Widget for &mut Types<'_> {
 
 fn constraints(types: &[Type]) -> [Constraint; 8] {
     [
-        Max(int_constraint(types.len())),
-        Max(strings_constraint(types.iter().map(Type::name), NAME)),
-        Max(strings_constraint(
-            types.iter().map(Type::description),
+        Max(index_width(types.len())),
+        Max(width(
+            NAME,
+            types.iter().map(|r#type| r#type.name().unwrap_or_default()),
+        )),
+        Max(width(
             DESCRIPTION,
+            types
+                .iter()
+                .map(|r#type| r#type.description().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            types.iter().map(Type::languages),
+        Max(width(
             LANGUAGES,
+            types
+                .iter()
+                .map(|r#type| r#type.languages().unwrap_or_default()),
         )),
-        Max(strings_constraint(types.iter().map(Type::check), CHECK)),
+        Max(width(
+            CHECK,
+            types
+                .iter()
+                .map(|r#type| r#type.check().unwrap_or_default()),
+        )),
         Max(IS_CUSTOM.len() as u16),
-        Max(strings_constraint(
-            types.iter().map(|r#type| r#type.setup().as_str()),
+        Max(width(
             SETUP,
+            types.iter().map(|r#type| r#type.setup().as_str()),
         )),
-        Max(ints_constraint(types.iter().map(Type::size), SIZE)),
+        Max(width(SIZE, types.iter().map(Type::size))),
     ]
 }

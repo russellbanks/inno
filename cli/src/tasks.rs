@@ -5,7 +5,7 @@ use ratatui::{
     buffer::Buffer,
     layout::{
         Alignment, Constraint,
-        Constraint::{Fill, Length, Max, Min},
+        Constraint::{Fill, Length, Max},
         Layout, Rect,
     },
     prelude::{Modifier, StatefulWidget, Style, Widget},
@@ -17,7 +17,7 @@ use ratatui::{
 };
 
 use super::emoji::Emoji;
-use crate::constraint::{int_constraint, ints_constraint, strings_constraint};
+use crate::constraint::{index_width, width};
 
 const NAME: &str = "Name";
 const DESCRIPTION: &str = "Description";
@@ -141,27 +141,41 @@ impl Widget for &mut Tasks<'_> {
 
 fn constraints(tasks: &[Task]) -> [Constraint; 10] {
     [
-        Max(int_constraint(tasks.len())),
-        Max(strings_constraint(tasks.iter().map(Task::name), NAME)),
-        Max(strings_constraint(
-            tasks.iter().map(Task::description),
+        Max(index_width(tasks.len())),
+        Max(width(
+            NAME,
+            tasks.iter().map(|task| task.name().unwrap_or_default()),
+        )),
+        Max(width(
             DESCRIPTION,
+            tasks
+                .iter()
+                .map(|task| task.description().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            tasks.iter().map(Task::group_description),
+        Max(width(
             GROUP_DESCRIPTION,
+            tasks
+                .iter()
+                .map(|task| task.group_description().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            tasks.iter().map(Task::components),
+        Max(width(
             COMPONENTS,
+            tasks
+                .iter()
+                .map(|task| task.components().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            tasks.iter().map(Task::languages),
+        Max(width(
             LANGUAGES,
+            tasks
+                .iter()
+                .map(|task| task.languages().unwrap_or_default()),
         )),
-        Max(strings_constraint(tasks.iter().map(Task::check), CHECK)),
-        Max(ints_constraint(tasks.iter().map(Task::level), LEVEL)),
+        Max(width(
+            CHECK,
+            tasks.iter().map(|task| task.check().unwrap_or_default()),
+        )),
+        Max(width(LEVEL, tasks.iter().map(Task::level))),
         Max(USED.len() as u16),
-        Min(FLAGS.len() as u16),
+        Max(width(FLAGS, tasks.iter().map(Task::flags))),
     ]
 }

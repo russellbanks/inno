@@ -16,7 +16,7 @@ use ratatui::{
     },
 };
 
-use super::constraint::{int_constraint, ints_constraint, strings_constraint};
+use super::constraint::{index_width, width};
 
 const NAME: &str = "Name";
 const PERMISSIONS: &str = "Permissions";
@@ -125,23 +125,27 @@ impl Widget for &mut Directories<'_> {
 
 fn constraints(directories: &[Directory]) -> [Constraint; 6] {
     [
-        Max(int_constraint(directories.len())),
-        Max(strings_constraint(
-            directories.iter().map(Directory::name),
+        Max(index_width(directories.len())),
+        Max(width(
             NAME,
+            directories
+                .iter()
+                .map(|directory| directory.name().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            directories.iter().map(Directory::permissions),
-            PERMISSION,
+        Max(width(
+            PERMISSIONS,
+            directories
+                .iter()
+                .map(|directory| directory.permissions().unwrap_or_default()),
         )),
-        Max(ints_constraint(
-            directories.iter().map(Directory::attributes),
+        Max(width(
             ATTRIBUTES,
+            directories.iter().map(Directory::attributes),
         )),
-        Max(ints_constraint(
-            directories.iter().map(Directory::permission),
+        Max(width(
             PERMISSION,
+            directories.iter().map(Directory::permission),
         )),
-        Length(FLAGS.len() as u16),
+        Max(width(FLAGS, directories.iter().map(Directory::flags))),
     ]
 }

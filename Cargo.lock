@@ -1006,13 +1006,10 @@ version = "0.7.6"
 dependencies = [
  "anstream",
  "anyhow",
- "bitflags",
  "clap",
  "crossterm 0.29.0",
  "indicatif",
  "inno",
- "itertools 0.15.0",
- "num-traits",
  "ratatui",
  "regex",
 ]

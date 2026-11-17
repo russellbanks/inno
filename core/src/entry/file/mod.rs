@@ -15,6 +15,7 @@ use zerocopy::LE;
 use crate::{
     entry::{Bitness, Condition},
     header::flag_reader::read_flags::read_flags,
+    path::InnoPath,
     read::ReadBytesExt,
     version::{InnoVersion, windows_version::WindowsVersionRange},
 };
@@ -162,35 +163,16 @@ impl File {
         self.source.as_deref()
     }
 
-    /// Returns the destination file path as a string slice.
+    /// Returns the path the file is installed to, such as `{app}\bin\foo.dll`.
+    ///
+    /// It comes from the installer, so it must not be joined onto a directory
+    /// as it is. Use [`InnoPath::to_relative_path`] to get a path that is safe
+    /// to extract the file to.
+    #[doc(alias = "DestName")]
     #[must_use]
     #[inline]
-    pub fn destination(&self) -> Option<&str> {
-        self.destination.as_deref()
-    }
-
-    /// Returns the destination file path as an owned [`String`], with any `{...}\`
-    /// prefix removed, and backslashes normalized to forward slashes.
-    ///
-    /// # Examples
-    ///
-    /// - `{app}\bin\foo.dll` -> `bin/foo.dll`
-    /// - `{sys}\bar.dll` -> `bar.dll`
-    /// - `plain\path.txt` -> `plain/path.txt`
-    pub fn normalized_destination(&self) -> Option<String> {
-        let mut destination = self.destination()?;
-
-        if destination.starts_with('{') {
-            // Strip the `{...}\` or `{.../` prefix
-            destination = destination.find('}').map_or(destination, |index| {
-                let rest = &destination[index + 1..];
-                rest.strip_prefix('\\')
-                    .or_else(|| rest.strip_prefix('/'))
-                    .unwrap_or(rest)
-            })
-        }
-
-        Some(destination.replace('\\', "/"))
+    pub fn destination(&self) -> Option<InnoPath<'_>> {
+        self.destination.as_deref().map(InnoPath::new)
     }
 
     /// Returns the install font name as a string slice.
@@ -283,21 +265,23 @@ impl Default for File {
 
 #[cfg(test)]
 mod tests {
-    use rstest::rstest;
-
     use super::File;
+    use crate::path::ByName;
 
-    #[rstest]
-    #[case::app(r"{app}\bin\foo.dll", "bin/foo.dll")]
-    #[case::sys(r"{sys}\bar.dll", "bar.dll")]
-    #[case::plain(r"plain\path.txt", "plain/path.txt")]
-    #[case::empty_after_prefix(r"{app}", "")]
-    fn resolve_path(#[case] destination: &str, #[case] expected: &str) {
+    #[test]
+    fn destination_is_a_path_template() {
         let file = File {
-            destination: Some(destination.into()),
+            destination: Some(r"{app}\bin\foo.dll".into()),
             ..File::default()
         };
+        let destination = file.destination().unwrap();
 
-        assert_eq!(file.normalized_destination().as_deref(), Some(expected));
+        assert_eq!(destination.as_str(), r"{app}\bin\foo.dll");
+        assert_eq!(destination.root().map(|root| root.name()), Some("app"));
+        assert_eq!(
+            destination.to_relative_path(ByName).unwrap().to_string(),
+            "app/bin/foo.dll"
+        );
+        assert_eq!(File::default().destination(), None);
     }
 }

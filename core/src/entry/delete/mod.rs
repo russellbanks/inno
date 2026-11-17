@@ -7,7 +7,7 @@ pub use target_type::TargetType;
 use zerocopy::LE;
 
 use super::Condition;
-use crate::{InnoVersion, WindowsVersionRange, read::ReadBytesExt};
+use crate::{InnoVersion, WindowsVersionRange, path::InnoPath, read::ReadBytesExt};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DeleteEntry {
@@ -44,11 +44,12 @@ impl DeleteEntry {
         Ok(delete_entry)
     }
 
-    /// Returns the name of the delete entry.
+    /// Returns the path to delete, such as `{app}\*.log`. It may contain
+    /// wildcards.
     #[must_use]
     #[inline]
-    pub const fn name(&self) -> &str {
-        self.name.as_str()
+    pub const fn name(&self) -> InnoPath<'_> {
+        InnoPath::new(self.name.as_str())
     }
 
     /// Returns the target type of the delete entry.

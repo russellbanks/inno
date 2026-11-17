@@ -78,8 +78,8 @@ impl Widget for &mut Icons<'_> {
         let rows = self.icons.iter().enumerate().map(|(index, icon)| {
             Row::new([
                 Cow::Owned((index + 1).to_string()),
-                Cow::Borrowed(icon.name().unwrap_or_default()),
-                Cow::Borrowed(icon.filename().unwrap_or_default()),
+                Cow::Borrowed(icon.name().unwrap_or_default().as_str()),
+                Cow::Borrowed(icon.filename().unwrap_or_default().as_str()),
                 Cow::Borrowed(icon.parameters().unwrap_or_default()),
                 Cow::Borrowed(icon.working_directory().unwrap_or_default()),
                 Cow::Borrowed(icon.file().unwrap_or_default()),

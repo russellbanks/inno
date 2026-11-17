@@ -7,6 +7,7 @@ use zerocopy::{Immutable, KnownLayout, LE, TryFromBytes, ValidityError, try_tran
 use super::Condition;
 use crate::{
     InnoVersion, ReadBytesExt, WindowsVersionRange, header::flag_reader::read_flags::read_flags,
+    path::InnoPath,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -90,18 +91,19 @@ impl Icon {
         Ok(icon)
     }
 
-    /// Returns the name of the icon as a string slice.
+    /// Returns the path of the shortcut, such as `{group}\My App`.
     #[must_use]
     #[inline]
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
+    pub fn name(&self) -> Option<InnoPath<'_>> {
+        self.name.as_deref().map(InnoPath::new)
     }
 
-    /// Returns the filename of the icon as a string slice.
+    /// Returns the path of the file the shortcut points to, such as
+    /// `{app}\MyApp.exe`.
     #[must_use]
     #[inline]
-    pub fn filename(&self) -> Option<&str> {
-        self.filename.as_deref()
+    pub fn filename(&self) -> Option<InnoPath<'_>> {
+        self.filename.as_deref().map(InnoPath::new)
     }
 
     /// Returns the parameters of the icon as a string slice.

@@ -59,7 +59,7 @@ impl Widget for &mut Directories<'_> {
             .map(|(index, directory)| {
                 Row::new([
                     Cow::Owned((index + 1).to_string()),
-                    Cow::Borrowed(directory.name().unwrap_or_default()),
+                    Cow::Borrowed(directory.name().unwrap_or_default().as_str()),
                     Cow::Borrowed(directory.permissions().unwrap_or_default()),
                     Cow::Owned(directory.attributes().to_string()),
                     Cow::Owned(directory.permission().to_string()),

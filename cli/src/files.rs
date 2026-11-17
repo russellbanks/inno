@@ -16,7 +16,7 @@ use ratatui::{
     },
 };
 
-use super::constraint::{flags_constraint, int_constraint, ints_constraint, strings_constraint};
+use super::constraint::{index_width, width};
 
 const SOURCE: &str = "Source";
 const DESTINATION: &str = "Destination";
@@ -48,12 +48,17 @@ pub struct Files<'a> {
 
 impl<'a> Files<'a> {
     pub fn new(files: &'a [File]) -> Self {
+        let flags = files
+            .iter()
+            .map(|file| file.flags().to_string())
+            .collect::<Vec<_>>();
+
         Self {
             files,
             state: TableState::new().with_selected(0),
             scroll_state: ScrollbarState::new(files.len()),
-            constraints: constraints(files),
-            flags: files.iter().map(|file| file.flags().to_string()).collect(),
+            constraints: constraints(files, &flags),
+            flags,
         }
     }
 
@@ -134,27 +139,33 @@ impl Widget for &mut Files<'_> {
     }
 }
 
-fn constraints(files: &[File]) -> [Constraint; 8] {
+fn constraints(files: &[File], flags: &[String]) -> [Constraint; 8] {
     [
-        Length(int_constraint(files.len())),
-        Max(strings_constraint(files.iter().map(File::source), SOURCE)),
-        Length(strings_constraint(
-            files.iter().map(File::destination),
+        Length(index_width(files.len())),
+        Max(width(
+            SOURCE,
+            files.iter().map(|file| file.source().unwrap_or_default()),
+        )),
+        Length(width(
             DESTINATION,
+            files
+                .iter()
+                .map(|file| file.destination().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            files.iter().map(File::install_font_name),
+        Max(width(
             FONT_NAME,
+            files
+                .iter()
+                .map(|file| file.install_font_name().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            files.iter().map(File::strong_assembly_name),
+        Max(width(
             ASSEMBLY_NAME,
+            files
+                .iter()
+                .map(|file| file.strong_assembly_name().unwrap_or_default()),
         )),
-        Max(ints_constraint(files.iter().map(File::external_size), SIZE)),
-        Max(flags_constraint(files.iter().map(File::flags), FLAGS)),
-        Max(strings_constraint(
-            files.iter().map(|file| file.r#type().as_str()),
-            TYPE,
-        )),
+        Max(width(SIZE, files.iter().map(File::external_size))),
+        Max(width(FLAGS, flags)),
+        Max(width(TYPE, files.iter().map(|file| file.r#type().as_str()))),
     ]
 }

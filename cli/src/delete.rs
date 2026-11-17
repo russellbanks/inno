@@ -16,7 +16,7 @@ use ratatui::{
     },
 };
 
-use super::constraint::{int_constraint, strings_constraint};
+use super::constraint::{index_width, width};
 
 const NAME: &str = "Name";
 const TARGET_TYPE: &str = "Target type";
@@ -129,16 +129,13 @@ impl Widget for &mut DeleteEntries<'_> {
 
 fn constraints(delete_entries: &[DeleteEntry]) -> [Constraint; 3] {
     [
-        Length(int_constraint(delete_entries.len())),
-        Max(strings_constraint(
-            delete_entries.iter().map(DeleteEntry::name),
-            NAME,
-        )),
-        Max(strings_constraint(
+        Length(index_width(delete_entries.len())),
+        Max(width(NAME, delete_entries.iter().map(DeleteEntry::name))),
+        Max(width(
+            TARGET_TYPE,
             delete_entries
                 .iter()
-                .map(|delete| delete.target_type().as_str()),
-            TARGET_TYPE,
+                .map(|delete_entry| delete_entry.target_type().as_str()),
         )),
     ]
 }

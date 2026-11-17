@@ -16,7 +16,7 @@ use ratatui::{
     },
 };
 
-use super::constraint::{int_constraint, strings_constraint};
+use super::constraint::{index_width, width};
 
 const NAME: &str = "Name";
 const VALUE: &str = "Value";
@@ -118,17 +118,24 @@ impl Widget for &mut Messages<'_, '_> {
 
 fn constraints(messages: &[Message]) -> [Constraint; 4] {
     [
-        Max(int_constraint(messages.len())),
-        Max(strings_constraint(messages.iter().map(Message::name), NAME)),
-        Max(strings_constraint(
-            messages.iter().map(Message::value),
-            VALUE,
-        )),
-        Max(strings_constraint(
+        Max(index_width(messages.len())),
+        Max(width(
+            NAME,
             messages
                 .iter()
-                .filter_map(|message| message.language().map(Language::name)),
+                .map(|message| message.name().unwrap_or_default()),
+        )),
+        Max(width(
+            VALUE,
+            messages
+                .iter()
+                .map(|message| message.value().unwrap_or_default()),
+        )),
+        Max(width(
             LANGUAGE,
+            messages
+                .iter()
+                .map(|message| message.language().map(Language::name).unwrap_or_default()),
         )),
     ]
 }

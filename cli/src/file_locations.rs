@@ -16,7 +16,7 @@ use ratatui::{
     },
 };
 
-use super::constraint::{flags_constraint, int_constraint, ints_constraint, strings_constraint};
+use super::constraint::{index_width, width};
 
 const UNCOMPRESSED_SIZE: &str = "Uncompressed size";
 const CREATED_AT: &str = "Created at";
@@ -129,25 +129,28 @@ impl Widget for &mut FileLocations<'_> {
 
 fn constraints(file_locations: &[FileLocation]) -> [Constraint; 6] {
     [
-        Max(int_constraint(file_locations.len())),
-        Max(ints_constraint(
-            file_locations.iter().map(FileLocation::uncompressed_size),
+        Max(index_width(file_locations.len())),
+        Max(width(
             UNCOMPRESSED_SIZE,
+            file_locations.iter().map(FileLocation::uncompressed_size),
         )),
-        Max(19), // Constant DateTime length
-        Max(ints_constraint(
-            file_locations.iter().map(FileLocation::file_version),
+        Max(width(
+            CREATED_AT,
+            file_locations.iter().map(FileLocation::date_time),
+        )),
+        Max(width(
             FILE_VERSION,
+            file_locations.iter().map(FileLocation::file_version),
         )),
-        Max(flags_constraint(
-            file_locations.iter().map(FileLocation::file_option_flags),
+        Max(width(
             OPTIONS,
+            file_locations.iter().map(FileLocation::file_option_flags),
         )),
-        Max(strings_constraint(
+        Max(width(
+            SIGN_MODE,
             file_locations
                 .iter()
                 .map(|file_location| file_location.sign_mode().as_str()),
-            SIGN_MODE,
         )),
     ]
 }

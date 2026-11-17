@@ -16,7 +16,7 @@ use ratatui::{
     },
 };
 
-use super::constraint::{flags_constraint, int_constraint, ints_constraint, strings_constraint};
+use super::constraint::{index_width, width};
 
 const KEY: &str = "Key";
 const NAME: &str = "Name";
@@ -137,40 +137,45 @@ impl Widget for &mut RegistryEntries<'_> {
 
 fn constraints(registries: &[RegistryEntry]) -> [Constraint; 9] {
     [
-        Max(int_constraint(registries.len())),
-        Max(strings_constraint(
-            registries.iter().map(RegistryEntry::key),
+        Max(index_width(registries.len())),
+        Max(width(
             KEY,
-        )),
-        Max(strings_constraint(
-            registries.iter().map(RegistryEntry::name),
-            NAME,
-        )),
-        Max(strings_constraint(
-            registries.iter().map(RegistryEntry::value),
-            VALUE,
-        )),
-        Max(strings_constraint(
-            registries.iter().map(RegistryEntry::permissions),
-            PERMISSIONS,
-        )),
-        Max(strings_constraint(
             registries
                 .iter()
-                .map(|entry| entry.registry_root().as_str()),
+                .map(|registry| registry.key().unwrap_or_default()),
+        )),
+        Max(width(
+            NAME,
+            registries
+                .iter()
+                .map(|registry| registry.name().unwrap_or_default()),
+        )),
+        Max(width(
+            VALUE,
+            registries
+                .iter()
+                .map(|registry| registry.value().unwrap_or_default()),
+        )),
+        Max(width(
+            PERMISSIONS,
+            registries
+                .iter()
+                .map(|registry| registry.permissions().unwrap_or_default()),
+        )),
+        Max(width(
             ROOT,
+            registries
+                .iter()
+                .map(|registry| registry.registry_root().as_str()),
         )),
-        Max(ints_constraint(
-            registries.iter().map(RegistryEntry::permission),
+        Max(width(
             PERMISSION,
+            registries.iter().map(RegistryEntry::permission),
         )),
-        Max(strings_constraint(
-            registries.iter().map(|entry| entry.r#type().as_str()),
+        Max(width(
             TYPE,
+            registries.iter().map(|registry| registry.r#type().as_str()),
         )),
-        Max(flags_constraint(
-            registries.iter().map(RegistryEntry::flags),
-            FLAGS,
-        )),
+        Max(width(FLAGS, registries.iter().map(RegistryEntry::flags))),
     ]
 }

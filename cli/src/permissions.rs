@@ -16,7 +16,7 @@ use ratatui::{
     },
 };
 
-use crate::constraint::{int_constraint, strings_constraint};
+use crate::constraint::{index_width, width};
 
 const PERMISSIONS: &str = "Permissions";
 
@@ -110,10 +110,10 @@ impl Widget for &mut Permissions<'_> {
 
 fn constraints(permissions: &[Permission]) -> [Constraint; 2] {
     [
-        Max(int_constraint(permissions.len())),
-        Max(strings_constraint(
-            permissions.iter().map(Permission::as_str),
+        Max(index_width(permissions.len())),
+        Max(width(
             PERMISSIONS,
+            permissions.iter().map(Permission::as_str),
         )),
     ]
 }

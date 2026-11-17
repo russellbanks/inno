@@ -17,10 +17,9 @@ use ratatui::{
 };
 
 use super::{
-    constraint::{int_constraint, ints_constraint, strings_constraint},
+    constraint::{index_width, width},
     emoji::Emoji,
 };
-use crate::constraint::flags_constraint;
 
 const NAME: &str = "Name";
 const DESCRIPTION: &str = "Description";
@@ -151,43 +150,44 @@ impl Widget for &mut Components<'_> {
 
 fn constraints(components: &[Component]) -> [Constraint; 11] {
     [
-        Max(int_constraint(components.len())),
-        Max(strings_constraint(
-            components.iter().map(Component::name),
+        Max(index_width(components.len())),
+        Max(width(
             NAME,
+            components
+                .iter()
+                .map(|component| component.name().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            components.iter().map(Component::description),
+        Max(width(
             DESCRIPTION,
+            components
+                .iter()
+                .map(|component| component.description().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            components.iter().map(Component::types),
+        Max(width(
             TYPES,
+            components
+                .iter()
+                .map(|component| component.types().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            components.iter().map(Component::languages),
+        Max(width(
             LANGUAGES,
+            components
+                .iter()
+                .map(|component| component.languages().unwrap_or_default()),
         )),
-        Max(strings_constraint(
-            components.iter().map(Component::check_once),
+        Max(width(
             CHECK,
+            components
+                .iter()
+                .map(|component| component.check_once().unwrap_or_default()),
         )),
-        Max(ints_constraint(
-            components.iter().map(Component::extra_disk_space_required),
+        Max(width(
             DISK_SPACE_REQUIRED,
+            components.iter().map(Component::extra_disk_space_required),
         )),
-        Max(ints_constraint(
-            components.iter().map(Component::level),
-            LEVEL,
-        )),
+        Max(width(LEVEL, components.iter().map(Component::level))),
         Max(USED.len() as u16),
-        Max(flags_constraint(
-            components.iter().map(Component::flags),
-            FLAGS,
-        )),
-        Max(ints_constraint(
-            components.iter().map(Component::size),
-            SIZE,
-        )),
+        Max(width(FLAGS, components.iter().map(Component::flags))),
+        Max(width(SIZE, components.iter().map(Component::size))),
     ]
 }

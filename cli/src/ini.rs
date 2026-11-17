@@ -16,7 +16,7 @@ use ratatui::{
     },
 };
 
-use super::constraint::{flags_constraint, int_constraint, strings_constraint};
+use super::constraint::{index_width, width};
 
 const FILE: &str = "File";
 const SECTION: &str = "Section";
@@ -121,17 +121,24 @@ impl Widget for &mut IniFiles<'_> {
 
 fn constraints(ini_files: &[Ini]) -> [Constraint; 6] {
     [
-        Max(int_constraint(ini_files.len())),
-        Max(strings_constraint(
-            ini_files.iter().map(Ini::file_path),
-            FILE,
-        )),
-        Max(strings_constraint(
-            ini_files.iter().map(Ini::section_name),
+        Max(index_width(ini_files.len())),
+        Max(width(FILE, ini_files.iter().map(Ini::file_path))),
+        Max(width(
             SECTION,
+            ini_files
+                .iter()
+                .map(|ini| ini.section_name().unwrap_or_default()),
         )),
-        Max(strings_constraint(ini_files.iter().map(Ini::key_name), KEY)),
-        Max(strings_constraint(ini_files.iter().map(Ini::value), VALUE)),
-        Max(flags_constraint(ini_files.iter().map(Ini::flags), FLAGS)),
+        Max(width(
+            KEY,
+            ini_files
+                .iter()
+                .map(|ini| ini.key_name().unwrap_or_default()),
+        )),
+        Max(width(
+            VALUE,
+            ini_files.iter().map(|ini| ini.value().unwrap_or_default()),
+        )),
+        Max(width(FLAGS, ini_files.iter().map(Ini::flags))),
     ]
 }

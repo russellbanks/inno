@@ -10,13 +10,11 @@ use ratatui::{
     },
     prelude::{Modifier, StatefulWidget, Style, Widget},
     style::palette::tailwind::SKY,
-    widgets::{
-        Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table,
-        TableState,
-    },
+    widgets::{Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, Table},
 };
 
 use super::constraint::{index_width, width};
+use crate::scroll::TableScroll;
 
 const UNCOMPRESSED_SIZE: &str = "Uncompressed size";
 const CREATED_AT: &str = "Created at";
@@ -36,8 +34,7 @@ const HEADERS: [&str; 6] = [
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FileLocations<'a> {
     file_locations: &'a [FileLocation],
-    state: TableState,
-    scroll_state: ScrollbarState,
+    scroll: TableScroll,
     constraints: [Constraint; 6],
 }
 
@@ -45,33 +42,13 @@ impl<'a> FileLocations<'a> {
     pub fn new(file_locations: &'a [FileLocation]) -> Self {
         Self {
             file_locations,
-            state: TableState::new().with_selected(0),
-            scroll_state: ScrollbarState::new(file_locations.len()),
+            scroll: TableScroll::new(file_locations.len()),
             constraints: constraints(file_locations),
         }
     }
 
-    pub fn next_row(&mut self) {
-        let index = self
-            .state
-            .selected()
-            .filter(|&index| index < self.file_locations.len())
-            .map(|index| index + 1)
-            .unwrap_or_default();
-
-        self.state.select(Some(index));
-        self.scroll_state = self.scroll_state.position(index);
-    }
-
-    pub fn previous_row(&mut self) {
-        let index = self
-            .state
-            .selected()
-            .map(|index| index.saturating_sub(1))
-            .unwrap_or_default();
-
-        self.state.select(Some(index));
-        self.scroll_state = self.scroll_state.position(index);
+    pub const fn scroll_mut(&mut self) -> &mut TableScroll {
+        &mut self.scroll
     }
 
     /// Returns `true` if there are no file location entries.
@@ -93,7 +70,7 @@ impl Widget for &mut FileLocations<'_> {
             Scrollbar::new(ScrollbarOrientation::VerticalRight),
             layout[1],
             buf,
-            &mut self.scroll_state,
+            &mut self.scroll.scrollbar,
         );
 
         let rows = self.file_locations.iter().enumerate().map(|(index, file)| {
@@ -122,7 +99,7 @@ impl Widget for &mut FileLocations<'_> {
                 .flex(Flex::Legacy),
             layout[0],
             buf,
-            &mut self.state,
+            &mut self.scroll.state,
         );
     }
 }

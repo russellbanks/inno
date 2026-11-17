@@ -14,6 +14,7 @@ mod messages;
 mod page;
 mod permissions;
 mod registries;
+mod scroll;
 mod summary;
 mod tabs;
 mod tasks;
@@ -25,12 +26,19 @@ use std::{
     io,
     io::{Read, Seek, Write},
     path::PathBuf,
+    time::Duration,
 };
 
 use anstream::println;
 use clap::Parser;
 use components::Components;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::{
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
+        KeyModifiers, MouseEvent, MouseEventKind,
+    },
+    execute,
+};
 use delete::DeleteEntries;
 use directories::Directories;
 use file_locations::FileLocations;
@@ -55,6 +63,7 @@ use ratatui::{
 };
 use regex::Regex;
 use registries::RegistryEntries;
+use scroll::TableScroll;
 use summary::Summary;
 use tabs::TabManager;
 use tasks::Tasks;
@@ -141,13 +150,20 @@ fn main() -> anyhow::Result<()> {
     }
 
     let mut terminal = ratatui::init();
-    let app_result = App::new(&inno).run(&mut terminal);
+    let app_result = execute!(io::stdout(), EnableMouseCapture)
+        .and_then(|()| App::new(&inno).run(&mut terminal));
+    let _ = execute!(io::stdout(), DisableMouseCapture);
     ratatui::restore();
     app_result.map_err(anyhow::Error::from)
 }
 
+/// Rows scrolled per mouse wheel notch.
+const WHEEL_SCROLL_ROWS: isize = 3;
+
 struct App<'a> {
     tabs: TabManager<'a>,
+    /// Data rows visible in the current page's table as of the last render.
+    visible_rows: usize,
     exit: bool,
 }
 
@@ -155,6 +171,7 @@ impl<'a> App<'a> {
     fn new<R: Read + Seek>(inno: &'a Inno<R>) -> Self {
         Self {
             tabs: TabManager::new(inno),
+            visible_rows: 0,
             exit: false,
         }
     }
@@ -171,13 +188,33 @@ impl<'a> App<'a> {
         frame.render_widget(self, frame.area());
     }
 
+    /// Blocks for the next event, then also handles every event already queued before the next
+    /// redraw. A fast spin of the mouse wheel produces a burst of events, and redrawing once per
+    /// burst instead of once per event keeps scrolling smooth.
     fn handle_events(&mut self) -> io::Result<()> {
-        match event::read()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                self.handle_key_event(key_event);
+        let mut wheel_delta = 0;
+        let mut event = event::read()?;
+        loop {
+            match event {
+                Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+                    self.scroll_by(wheel_delta);
+                    wheel_delta = 0;
+                    self.handle_key_event(key_event);
+                }
+                Event::Mouse(MouseEvent { kind, .. }) => match kind {
+                    MouseEventKind::ScrollDown => wheel_delta += WHEEL_SCROLL_ROWS,
+                    MouseEventKind::ScrollUp => wheel_delta -= WHEEL_SCROLL_ROWS,
+                    _ => {}
+                },
+                _ => {}
             }
-            _ => {}
+
+            if self.exit || !event::poll(Duration::ZERO)? {
+                break;
+            }
+            event = event::read()?;
         }
+        self.scroll_by(wheel_delta);
         Ok(())
     }
 
@@ -218,45 +255,47 @@ impl<'a> App<'a> {
         self.tabs.previous_tab();
     }
 
-    fn scroll_up(&mut self) {
+    fn current_scroll_mut(&mut self) -> Option<&mut TableScroll> {
         match self.current_page_mut() {
-            Page::Header(summary) => summary.previous_row(),
-            Page::Languages(languages) => languages.previous_row(),
-            Page::Messages(messages) => messages.previous_row(),
-            Page::Permissions(permissions) => permissions.previous_row(),
-            Page::Types(types) => types.previous_row(),
-            Page::Components(components) => components.previous_row(),
-            Page::Tasks(tasks) => tasks.previous_row(),
-            Page::Directories(directories) => directories.previous_row(),
-            Page::Files(files) => files.previous_row(),
-            Page::FileLocations(file_locations) => file_locations.previous_row(),
-            Page::Icons(icons) => icons.previous_row(),
-            Page::Ini(ini_files) => ini_files.previous_row(),
-            Page::Registry(registries) => registries.previous_row(),
-            Page::DeleteInstall(delete_installs) => delete_installs.previous_row(),
-            Page::DeleteUninstall(delete_uninstalls) => delete_uninstalls.previous_row(),
-            _ => {}
+            Page::Header(summary) => Some(summary.scroll_mut()),
+            Page::Languages(languages) => Some(languages.scroll_mut()),
+            Page::Messages(messages) => Some(messages.scroll_mut()),
+            Page::Permissions(permissions) => Some(permissions.scroll_mut()),
+            Page::Types(types) => Some(types.scroll_mut()),
+            Page::Components(components) => Some(components.scroll_mut()),
+            Page::Tasks(tasks) => Some(tasks.scroll_mut()),
+            Page::Directories(directories) => Some(directories.scroll_mut()),
+            Page::Files(files) => Some(files.scroll_mut()),
+            Page::FileLocations(file_locations) => Some(file_locations.scroll_mut()),
+            Page::Icons(icons) => Some(icons.scroll_mut()),
+            Page::Ini(ini_files) => Some(ini_files.scroll_mut()),
+            Page::Registry(registries) => Some(registries.scroll_mut()),
+            Page::DeleteInstall(delete_installs) => Some(delete_installs.scroll_mut()),
+            Page::DeleteUninstall(delete_uninstalls) => Some(delete_uninstalls.scroll_mut()),
+            Page::RunInstall | Page::RunUninstall => None,
+        }
+    }
+
+    fn scroll_up(&mut self) {
+        if let Some(scroll) = self.current_scroll_mut() {
+            scroll.previous_row();
         }
     }
 
     fn scroll_down(&mut self) {
-        match self.current_page_mut() {
-            Page::Header(summary) => summary.next_row(),
-            Page::Languages(languages) => languages.next_row(),
-            Page::Messages(messages) => messages.next_row(),
-            Page::Permissions(permissions) => permissions.next_row(),
-            Page::Types(types) => types.next_row(),
-            Page::Components(components) => components.next_row(),
-            Page::Tasks(tasks) => tasks.next_row(),
-            Page::Directories(directories) => directories.next_row(),
-            Page::Files(files) => files.next_row(),
-            Page::FileLocations(file_locations) => file_locations.next_row(),
-            Page::Icons(icons) => icons.next_row(),
-            Page::Ini(ini_files) => ini_files.next_row(),
-            Page::Registry(registries) => registries.next_row(),
-            Page::DeleteInstall(delete_installs) => delete_installs.next_row(),
-            Page::DeleteUninstall(delete_uninstalls) => delete_uninstalls.next_row(),
-            _ => {}
+        if let Some(scroll) = self.current_scroll_mut() {
+            scroll.next_row();
+        }
+    }
+
+    /// Scrolls the current page's view by `delta` rows, as the mouse wheel does.
+    fn scroll_by(&mut self, delta: isize) {
+        if delta == 0 {
+            return;
+        }
+        let visible_rows = self.visible_rows;
+        if let Some(scroll) = self.current_scroll_mut() {
+            scroll.scroll_by(delta, visible_rows);
         }
     }
 }
@@ -269,6 +308,8 @@ impl Widget for &mut App<'_> {
         let vertical = Layout::vertical([Length(1), Min(0), Length(1)]);
 
         let [tabs_area, inner_area, footer_area] = vertical.areas(area);
+
+        self.visible_rows = scroll::visible_rows(inner_area.height);
 
         self.tabs.render(tabs_area, buf);
         match self.tabs.current_tab_mut() {

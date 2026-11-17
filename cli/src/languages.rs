@@ -11,13 +11,16 @@ use ratatui::{
     prelude::{Modifier, Style},
     style::palette::tailwind::SKY,
     widgets::{
-        Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, ScrollbarState,
-        StatefulWidget, Table, TableState, Widget,
+        Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, StatefulWidget, Table,
+        Widget,
     },
 };
 
 use super::emoji::Emoji;
-use crate::constraint::{index_width, width};
+use crate::{
+    constraint::{index_width, width},
+    scroll::TableScroll,
+};
 
 const NAME: &str = "Name";
 const LANGUAGE_NAME: &str = "Language name";
@@ -41,8 +44,7 @@ const HEADERS: [&str; 8] = [
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Languages<'a> {
     languages: &'a [Language],
-    state: TableState,
-    scroll_state: ScrollbarState,
+    scroll: TableScroll,
     constraints: [Constraint; 8],
 }
 
@@ -50,33 +52,13 @@ impl<'a> Languages<'a> {
     pub fn new(languages: &'a [Language]) -> Self {
         Self {
             languages,
-            state: TableState::new().with_selected(0),
-            scroll_state: ScrollbarState::new(languages.len()),
+            scroll: TableScroll::new(languages.len()),
             constraints: constraints(languages),
         }
     }
 
-    pub fn next_row(&mut self) {
-        let index = self
-            .state
-            .selected()
-            .filter(|&index| index < self.languages.len())
-            .map(|index| index + 1)
-            .unwrap_or_default();
-
-        self.state.select(Some(index));
-        self.scroll_state = self.scroll_state.position(index);
-    }
-
-    pub fn previous_row(&mut self) {
-        let index = self
-            .state
-            .selected()
-            .map(|index| index.saturating_sub(1))
-            .unwrap_or_default();
-
-        self.state.select(Some(index));
-        self.scroll_state = self.scroll_state.position(index);
+    pub const fn scroll_mut(&mut self) -> &mut TableScroll {
+        &mut self.scroll
     }
 
     /// Returns `true` if there are no language entries.
@@ -98,7 +80,7 @@ impl Widget for &mut Languages<'_> {
             Scrollbar::new(ScrollbarOrientation::VerticalRight),
             layout[1],
             buf,
-            &mut self.scroll_state,
+            &mut self.scroll.scrollbar,
         );
 
         let rows = self.languages.iter().enumerate().map(|(index, lang)| {
@@ -137,7 +119,7 @@ impl Widget for &mut Languages<'_> {
                 .flex(Flex::Legacy),
             layout[0],
             buf,
-            &mut self.state,
+            &mut self.scroll.state,
         );
     }
 }

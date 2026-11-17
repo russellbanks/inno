@@ -4,11 +4,13 @@ use inno::entry::{
     Component, Directory, File, FileLocation, Icon, Ini, Language, Permission, RegistryEntry, Task,
     Type,
 };
+use ratatui::{buffer::Buffer, layout::Rect, widgets::Widget};
 
 use super::{
     Components, DeleteEntries, Directories, FileLocations, Files, Icons, IniFiles, Languages,
     Messages, Permissions, RegistryEntries, Summary, Tasks, Types,
 };
+use crate::scroll::TableScroll;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Page<'a> {
@@ -32,6 +34,30 @@ pub enum Page<'a> {
 }
 
 impl Page<'_> {
+    /// Returns the page's table scroll state, or `None` for a page without a table.
+    #[must_use]
+    pub const fn scroll_mut(&mut self) -> Option<&mut TableScroll> {
+        match self {
+            Self::Header(summary) => Some(summary.scroll_mut()),
+            Self::Languages(languages) => Some(languages.scroll_mut()),
+            Self::Messages(messages) => Some(messages.scroll_mut()),
+            Self::Permissions(permissions) => Some(permissions.scroll_mut()),
+            Self::Types(types) => Some(types.scroll_mut()),
+            Self::Components(components) => Some(components.scroll_mut()),
+            Self::Tasks(tasks) => Some(tasks.scroll_mut()),
+            Self::Directories(directories) => Some(directories.scroll_mut()),
+            Self::Files(files) => Some(files.scroll_mut()),
+            Self::FileLocations(file_locations) => Some(file_locations.scroll_mut()),
+            Self::Icons(icons) => Some(icons.scroll_mut()),
+            Self::Ini(ini_files) => Some(ini_files.scroll_mut()),
+            Self::Registry(registries) => Some(registries.scroll_mut()),
+            Self::DeleteInstall(delete_entries) | Self::DeleteUninstall(delete_entries) => {
+                Some(delete_entries.scroll_mut())
+            }
+            Self::RunInstall | Self::RunUninstall => None,
+        }
+    }
+
     #[must_use]
     pub const fn title(&self) -> &'static str {
         match self {
@@ -69,6 +95,33 @@ impl Page<'_> {
             Self::DeleteInstall(delete_installs) => delete_installs.is_empty(),
             Self::DeleteUninstall(delete_uninstalls) => delete_uninstalls.is_empty(),
             _ => false,
+        }
+    }
+}
+
+impl Widget for &mut Page<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer)
+    where
+        Self: Sized,
+    {
+        match self {
+            Page::Header(summary) => summary.render(area, buf),
+            Page::Languages(languages) => languages.render(area, buf),
+            Page::Messages(messages) => messages.render(area, buf),
+            Page::Permissions(permissions) => permissions.render(area, buf),
+            Page::Types(types) => types.render(area, buf),
+            Page::Components(components) => components.render(area, buf),
+            Page::Tasks(tasks) => tasks.render(area, buf),
+            Page::Directories(directories) => directories.render(area, buf),
+            Page::Files(files) => files.render(area, buf),
+            Page::FileLocations(file_locations) => file_locations.render(area, buf),
+            Page::Icons(icons) => icons.render(area, buf),
+            Page::Ini(ini_files) => ini_files.render(area, buf),
+            Page::Registry(registries) => registries.render(area, buf),
+            Page::DeleteInstall(delete_entries) | Page::DeleteUninstall(delete_entries) => {
+                delete_entries.render(area, buf);
+            }
+            Page::RunInstall | Page::RunUninstall => {}
         }
     }
 }

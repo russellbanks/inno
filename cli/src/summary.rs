@@ -4,15 +4,10 @@ use inno::{Header, version::InnoVersion};
 use ratatui::{
     buffer::Buffer,
     layout::{
-        Alignment,
         Constraint::{Fill, Length},
-        Flex, Layout, Rect,
+        Flex, Rect,
     },
-    style::{Modifier, Style, palette::tailwind::SKY},
-    widgets::{
-        Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, StatefulWidget, Table,
-        Widget,
-    },
+    widgets::{Row, Table, Widget},
 };
 
 use super::emoji::Emoji;
@@ -264,32 +259,12 @@ impl Widget for &mut Summary<'_> {
     where
         Self: Sized,
     {
-        let layout = Layout::horizontal([Fill(1), Length(1)]).split(area);
-
-        StatefulWidget::render(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight),
-            layout[1],
+        self.scroll.render(
+            Table::new(self.rows.iter().cloned(), [Length(40), Fill(1)]).flex(Flex::Start),
+            ["Name", "Value"],
+            "Summary",
+            area,
             buf,
-            &mut self.scroll.scrollbar,
-        );
-
-        StatefulWidget::render(
-            Table::new(self.rows.iter().cloned(), [Length(40), Fill(1)])
-                .header(
-                    Row::new(["Name", "Value"]).style(Style::new().add_modifier(Modifier::BOLD)),
-                )
-                .block(
-                    Block::bordered()
-                        .title("Summary")
-                        .title_alignment(Alignment::Center)
-                        .border_type(BorderType::Rounded)
-                        .padding(Padding::proportional(1)),
-                )
-                .row_highlight_style(Style::new().add_modifier(Modifier::REVERSED).fg(SKY.c400))
-                .flex(Flex::Start),
-            layout[0],
-            buf,
-            &mut self.scroll.state,
         );
     }
 }

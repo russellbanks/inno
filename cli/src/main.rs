@@ -35,7 +35,7 @@ use components::Components;
 use crossterm::{
     event::{
         self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-        KeyModifiers, MouseEvent, MouseEventKind,
+        KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     },
     execute,
 };
@@ -56,14 +56,15 @@ use ratatui::{
     buffer::Buffer,
     layout::{
         Constraint::{Length, Min},
-        Layout, Rect,
+        Layout, Position, Rect,
     },
+    style::{Style, palette::tailwind::SLATE},
     text::Line,
     widgets::Widget,
 };
 use regex::Regex;
 use registries::RegistryEntries;
-use scroll::TableScroll;
+use scroll::{ScrollbarHit, TableScroll};
 use summary::Summary;
 use tabs::TabManager;
 use tasks::Tasks;
@@ -160,18 +161,41 @@ fn main() -> anyhow::Result<()> {
 /// Rows scrolled per mouse wheel notch.
 const WHEEL_SCROLL_ROWS: isize = 3;
 
+/// Background of the row under the mouse cursor.
+const HOVER_STYLE: Style = Style::new().bg(SLATE.c800);
+
 struct App<'a> {
     tabs: TabManager<'a>,
-    /// Data rows visible in the current page's table as of the last render.
-    visible_rows: usize,
+    /// Area of the tab bar as of the last render.
+    tabs_area: Rect,
+    /// Area the current page was rendered into as of the last render.
+    page_area: Rect,
+    /// What the left mouse button was pressed on, while it is held down.
+    drag: Option<DragTarget>,
+    /// Where the mouse cursor was last seen.
+    hover: Option<Position>,
     exit: bool,
+}
+
+/// The part of the screen a left mouse press started on, which a drag keeps acting on.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DragTarget {
+    Tabs,
+    Rows,
+    /// The scrollbar thumb, grabbed `grab` cells below its top.
+    Thumb {
+        grab: u16,
+    },
 }
 
 impl<'a> App<'a> {
     fn new<R: Read + Seek>(inno: &'a Inno<R>) -> Self {
         Self {
             tabs: TabManager::new(inno),
-            visible_rows: 0,
+            tabs_area: Rect::ZERO,
+            page_area: Rect::ZERO,
+            drag: None,
+            hover: None,
             exit: false,
         }
     }
@@ -201,9 +225,24 @@ impl<'a> App<'a> {
                     wheel_delta = 0;
                     self.handle_key_event(key_event);
                 }
-                Event::Mouse(MouseEvent { kind, .. }) => match kind {
+                Event::Mouse(MouseEvent {
+                    kind, column, row, ..
+                }) => match kind {
                     MouseEventKind::ScrollDown => wheel_delta += WHEEL_SCROLL_ROWS,
                     MouseEventKind::ScrollUp => wheel_delta -= WHEEL_SCROLL_ROWS,
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        self.scroll_by(wheel_delta);
+                        wheel_delta = 0;
+                        self.click(Position::new(column, row));
+                    }
+                    MouseEventKind::Drag(MouseButton::Left) => {
+                        self.scroll_by(wheel_delta);
+                        wheel_delta = 0;
+                        self.hover = Some(Position::new(column, row));
+                        self.drag_to(Position::new(column, row));
+                    }
+                    MouseEventKind::Up(MouseButton::Left) => self.drag = None,
+                    MouseEventKind::Moved => self.hover = Some(Position::new(column, row)),
                     _ => {}
                 },
                 _ => {}
@@ -231,6 +270,16 @@ impl<'a> App<'a> {
                 KeyCode::Right | KeyCode::Char('d' | 'D') => self.next_view(),
                 KeyCode::Up => self.scroll_up(),
                 KeyCode::Down => self.scroll_down(),
+                KeyCode::PageUp => {
+                    let visible_rows = self.visible_rows();
+                    self.with_scroll(|scroll| scroll.page_up(visible_rows));
+                }
+                KeyCode::PageDown => {
+                    let visible_rows = self.visible_rows();
+                    self.with_scroll(|scroll| scroll.page_down(visible_rows));
+                }
+                KeyCode::Home => self.with_scroll(TableScroll::first_row),
+                KeyCode::End => self.with_scroll(TableScroll::last_row),
                 _ => {}
             },
         }
@@ -256,36 +305,34 @@ impl<'a> App<'a> {
     }
 
     fn current_scroll_mut(&mut self) -> Option<&mut TableScroll> {
-        match self.current_page_mut() {
-            Page::Header(summary) => Some(summary.scroll_mut()),
-            Page::Languages(languages) => Some(languages.scroll_mut()),
-            Page::Messages(messages) => Some(messages.scroll_mut()),
-            Page::Permissions(permissions) => Some(permissions.scroll_mut()),
-            Page::Types(types) => Some(types.scroll_mut()),
-            Page::Components(components) => Some(components.scroll_mut()),
-            Page::Tasks(tasks) => Some(tasks.scroll_mut()),
-            Page::Directories(directories) => Some(directories.scroll_mut()),
-            Page::Files(files) => Some(files.scroll_mut()),
-            Page::FileLocations(file_locations) => Some(file_locations.scroll_mut()),
-            Page::Icons(icons) => Some(icons.scroll_mut()),
-            Page::Ini(ini_files) => Some(ini_files.scroll_mut()),
-            Page::Registry(registries) => Some(registries.scroll_mut()),
-            Page::DeleteInstall(delete_installs) => Some(delete_installs.scroll_mut()),
-            Page::DeleteUninstall(delete_uninstalls) => Some(delete_uninstalls.scroll_mut()),
-            Page::RunInstall | Page::RunUninstall => None,
+        self.current_page_mut().scroll_mut()
+    }
+
+    /// Runs `f` on the current page's scroll state, if the page has a table.
+    fn with_scroll(&mut self, f: impl FnOnce(&mut TableScroll)) {
+        if let Some(scroll) = self.current_scroll_mut() {
+            f(scroll);
         }
+    }
+
+    /// Returns the current page's table data rows area as of the last render.
+    fn rows_area(&mut self) -> Rect {
+        let page_area = self.page_area;
+        self.current_scroll_mut()
+            .map_or(Rect::ZERO, |scroll| scroll.rows_area(page_area))
+    }
+
+    /// Returns how many data rows the current page shows as of the last render.
+    fn visible_rows(&mut self) -> usize {
+        usize::from(self.rows_area().height)
     }
 
     fn scroll_up(&mut self) {
-        if let Some(scroll) = self.current_scroll_mut() {
-            scroll.previous_row();
-        }
+        self.with_scroll(TableScroll::previous_row);
     }
 
     fn scroll_down(&mut self) {
-        if let Some(scroll) = self.current_scroll_mut() {
-            scroll.next_row();
-        }
+        self.with_scroll(TableScroll::next_row);
     }
 
     /// Scrolls the current page's view by `delta` rows, as the mouse wheel does.
@@ -293,9 +340,81 @@ impl<'a> App<'a> {
         if delta == 0 {
             return;
         }
-        let visible_rows = self.visible_rows;
-        if let Some(scroll) = self.current_scroll_mut() {
-            scroll.scroll_by(delta, visible_rows);
+        let visible_rows = self.visible_rows();
+        self.with_scroll(|scroll| scroll.scroll_by(delta, visible_rows));
+    }
+
+    /// Acts on a left mouse press at `position`: switches to the tab there, scrolls by a row or a
+    /// screen for the scrollbar's arrows or track, or selects the row there. Pressing a tab, the
+    /// scrollbar thumb, or a row also starts a drag over it.
+    fn click(&mut self, position: Position) {
+        self.drag = None;
+        if self.tabs_area.contains(position) {
+            self.drag = Some(DragTarget::Tabs);
+            self.tabs.click(position, self.tabs_area);
+            return;
+        }
+
+        let page_area = self.page_area;
+        let hit = self
+            .current_scroll_mut()
+            .and_then(|scroll| scroll.scrollbar_hit(position, page_area));
+        if let Some(hit) = hit {
+            let screen = self.visible_rows().cast_signed();
+            match hit {
+                ScrollbarHit::UpArrow => self.scroll_by(-1),
+                ScrollbarHit::DownArrow => self.scroll_by(1),
+                ScrollbarHit::TrackAbove => self.scroll_by(-screen),
+                ScrollbarHit::TrackBelow => self.scroll_by(screen),
+                ScrollbarHit::Thumb { grab } => self.drag = Some(DragTarget::Thumb { grab }),
+            }
+            return;
+        }
+
+        let rows_area = self.rows_area();
+        let on_row = self
+            .current_scroll_mut()
+            .is_some_and(|scroll| scroll.click(position, rows_area));
+        if on_row {
+            self.drag = Some(DragTarget::Rows);
+        }
+    }
+
+    /// Follows the cursor while the left mouse button is held: a drag that started on the tab
+    /// bar switches to the tab under the cursor, one that started on a row selects the row level
+    /// with the cursor, and one that started on the scrollbar thumb moves the thumb with it.
+    fn drag_to(&mut self, position: Position) {
+        let page_area = self.page_area;
+        match self.drag {
+            Some(DragTarget::Tabs) => self.tabs.click(position, self.tabs_area),
+            Some(DragTarget::Rows) => {
+                let rows_area = self.rows_area();
+                self.with_scroll(|scroll| scroll.drag_to(position, rows_area));
+            }
+            Some(DragTarget::Thumb { grab }) => {
+                self.with_scroll(|scroll| scroll.drag_thumb(position.y, grab, page_area));
+            }
+            None => {}
+        }
+    }
+
+    /// Shades the row under the mouse cursor, unless it is the selected row, which already has
+    /// its own highlight.
+    fn render_hover(&mut self, buf: &mut Buffer) {
+        let Some(hover) = self.hover else {
+            return;
+        };
+        let rows_area = self.rows_area();
+        let Some(scroll) = self.current_scroll_mut() else {
+            return;
+        };
+        if let Some(index) = scroll.row_at(hover, rows_area)
+            && index != scroll.selected()
+        {
+            buf.set_style(
+                Rect::new(rows_area.x, hover.y, rows_area.width, 1),
+                HOVER_STYLE,
+            );
         }
     }
 }
@@ -309,31 +428,16 @@ impl Widget for &mut App<'_> {
 
         let [tabs_area, inner_area, footer_area] = vertical.areas(area);
 
-        self.visible_rows = scroll::visible_rows(inner_area.height);
+        self.tabs_area = tabs_area;
+        self.page_area = inner_area;
 
         self.tabs.render(tabs_area, buf);
-        match self.tabs.current_tab_mut() {
-            Page::Header(summary) => summary.render(inner_area, buf),
-            Page::Languages(languages) => languages.render(inner_area, buf),
-            Page::Messages(messages) => messages.render(inner_area, buf),
-            Page::Permissions(permissions) => permissions.render(inner_area, buf),
-            Page::Types(types) => types.render(inner_area, buf),
-            Page::Components(components) => components.render(inner_area, buf),
-            Page::Tasks(tasks) => tasks.render(inner_area, buf),
-            Page::Directories(directories) => directories.render(inner_area, buf),
-            Page::Files(files) => files.render(inner_area, buf),
-            Page::FileLocations(file_locations) => file_locations.render(inner_area, buf),
-            Page::Icons(icons) => icons.render(inner_area, buf),
-            Page::Ini(ini_files) => ini_files.render(inner_area, buf),
-            Page::Registry(registries) => registries.render(inner_area, buf),
-            Page::DeleteInstall(delete_installs) => delete_installs.render(inner_area, buf),
-            Page::DeleteUninstall(delete_uninstalls) => delete_uninstalls.render(inner_area, buf),
-            _ => {}
-        }
+        self.current_page_mut().render(inner_area, buf);
+        self.render_hover(buf);
         footer().render(footer_area, buf);
     }
 }
 
 fn footer() -> Line<'static> {
-    Line::raw("◄ ► to change tab | Press q to quit").centered()
+    Line::raw("◄ ► to change tab | ▲ ▼ PgUp PgDn Home End to move | Press q to quit").centered()
 }

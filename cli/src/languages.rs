@@ -3,17 +3,8 @@ use std::borrow::Cow;
 use inno::entry::Language;
 use ratatui::{
     buffer::Buffer,
-    layout::{
-        Alignment, Constraint,
-        Constraint::{Fill, Length, Max},
-        Flex, Layout, Rect,
-    },
-    prelude::{Modifier, Style},
-    style::palette::tailwind::SKY,
-    widgets::{
-        Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, StatefulWidget, Table,
-        Widget,
-    },
+    layout::{Constraint, Constraint::Max, Flex, Rect},
+    widgets::{Row, Table, Widget},
 };
 
 use super::emoji::Emoji;
@@ -74,15 +65,6 @@ impl Widget for &mut Languages<'_> {
     where
         Self: Sized,
     {
-        let layout = Layout::horizontal([Fill(1), Length(1)]).split(area);
-
-        StatefulWidget::render(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight),
-            layout[1],
-            buf,
-            &mut self.scroll.scrollbar,
-        );
-
         let rows = self.languages.iter().enumerate().map(|(index, lang)| {
             Row::new([
                 Cow::Owned((index + 1).to_string()),
@@ -104,22 +86,14 @@ impl Widget for &mut Languages<'_> {
             ])
         });
 
-        StatefulWidget::render(
+        self.scroll.render(
             Table::new(rows, self.constraints)
-                .header(Row::new(HEADERS).style(Style::default().add_modifier(Modifier::BOLD)))
                 .column_spacing(2)
-                .block(
-                    Block::bordered()
-                        .title("Languages")
-                        .title_alignment(Alignment::Center)
-                        .border_type(BorderType::Rounded)
-                        .padding(Padding::proportional(1)),
-                )
-                .row_highlight_style(Style::new().add_modifier(Modifier::REVERSED).fg(SKY.c400))
                 .flex(Flex::Legacy),
-            layout[0],
+            HEADERS,
+            "Languages",
+            area,
             buf,
-            &mut self.scroll.state,
         );
     }
 }

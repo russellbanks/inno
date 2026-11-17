@@ -10,13 +10,11 @@ use ratatui::{
     },
     prelude::{Modifier, StatefulWidget, Style, Widget},
     style::palette::tailwind::SKY,
-    widgets::{
-        Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table,
-        TableState,
-    },
+    widgets::{Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, Table},
 };
 
 use super::constraint::{index_width, width};
+use crate::scroll::TableScroll;
 
 const NAME: &str = "Name";
 const PERMISSIONS: &str = "Permissions";
@@ -29,8 +27,7 @@ const HEADERS: [&str; 6] = ["#", NAME, PERMISSIONS, ATTRIBUTES, PERMISSION, FLAG
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Directories<'a> {
     directories: &'a [Directory],
-    state: TableState,
-    scroll_state: ScrollbarState,
+    scroll: TableScroll,
     constraints: [Constraint; 6],
 }
 
@@ -38,33 +35,13 @@ impl<'a> Directories<'a> {
     pub fn new(directories: &'a [Directory]) -> Self {
         Self {
             directories,
-            state: TableState::new().with_selected(0),
-            scroll_state: ScrollbarState::new(directories.len()),
+            scroll: TableScroll::new(directories.len()),
             constraints: constraints(directories),
         }
     }
 
-    pub fn next_row(&mut self) {
-        let index = self
-            .state
-            .selected()
-            .filter(|&index| index < self.directories.len())
-            .map(|index| index + 1)
-            .unwrap_or_default();
-
-        self.state.select(Some(index));
-        self.scroll_state = self.scroll_state.position(index);
-    }
-
-    pub fn previous_row(&mut self) {
-        let index = self
-            .state
-            .selected()
-            .map(|index| index.saturating_sub(1))
-            .unwrap_or_default();
-
-        self.state.select(Some(index));
-        self.scroll_state = self.scroll_state.position(index);
+    pub const fn scroll_mut(&mut self) -> &mut TableScroll {
+        &mut self.scroll
     }
 
     /// Returns `true` if there are no directory entries.
@@ -86,7 +63,7 @@ impl Widget for &mut Directories<'_> {
             Scrollbar::new(ScrollbarOrientation::VerticalRight),
             layout[1],
             buf,
-            &mut self.scroll_state,
+            &mut self.scroll.scrollbar,
         );
 
         let rows = self
@@ -118,7 +95,7 @@ impl Widget for &mut Directories<'_> {
                 .row_highlight_style(Style::new().add_modifier(Modifier::REVERSED).fg(SKY.c400)),
             layout[0],
             buf,
-            &mut self.state,
+            &mut self.scroll.state,
         );
     }
 }

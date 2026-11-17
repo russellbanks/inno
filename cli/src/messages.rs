@@ -11,12 +11,13 @@ use ratatui::{
     prelude::{Alignment, Modifier, Style},
     style::palette::tailwind::SKY,
     widgets::{
-        Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, ScrollbarState,
-        StatefulWidget, Table, TableState, Widget,
+        Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, StatefulWidget, Table,
+        Widget,
     },
 };
 
 use super::constraint::{index_width, width};
+use crate::scroll::TableScroll;
 
 const NAME: &str = "Name";
 const VALUE: &str = "Value";
@@ -27,8 +28,7 @@ const HEADERS: [&str; 4] = ["#", NAME, VALUE, LANGUAGE];
 
 pub struct Messages<'a, 'language> {
     messages: Vec<Message<'a, 'language>>,
-    state: TableState,
-    scroll_state: ScrollbarState,
+    scroll: TableScroll,
     constraints: [Constraint; 4],
 }
 
@@ -36,34 +36,14 @@ impl<'a, 'language> Messages<'a, 'language> {
     #[must_use]
     pub fn new(messages: Vec<Message<'a, 'language>>) -> Self {
         Self {
-            state: TableState::new().with_selected(0),
-            scroll_state: ScrollbarState::new(messages.len()),
+            scroll: TableScroll::new(messages.len()),
             constraints: constraints(&messages),
             messages,
         }
     }
 
-    pub fn next_row(&mut self) {
-        let index = self
-            .state
-            .selected()
-            .filter(|&index| index < self.messages.len())
-            .map(|index| index + 1)
-            .unwrap_or_default();
-
-        self.state.select(Some(index));
-        self.scroll_state = self.scroll_state.position(index);
-    }
-
-    pub fn previous_row(&mut self) {
-        let index = self
-            .state
-            .selected()
-            .map(|index| index.saturating_sub(1))
-            .unwrap_or_default();
-
-        self.state.select(Some(index));
-        self.scroll_state = self.scroll_state.position(index);
+    pub const fn scroll_mut(&mut self) -> &mut TableScroll {
+        &mut self.scroll
     }
 
     /// Returns `true` if there are no message entries.
@@ -85,7 +65,7 @@ impl Widget for &mut Messages<'_, '_> {
             Scrollbar::new(ScrollbarOrientation::VerticalRight),
             layout[1],
             buf,
-            &mut self.scroll_state,
+            &mut self.scroll.scrollbar,
         );
 
         let rows = self.messages.iter().enumerate().map(|(index, message)| {
@@ -111,7 +91,7 @@ impl Widget for &mut Messages<'_, '_> {
                 .row_highlight_style(Style::new().add_modifier(Modifier::REVERSED).fg(SKY.c400)),
             layout[0],
             buf,
-            &mut self.state,
+            &mut self.scroll.state,
         );
     }
 }

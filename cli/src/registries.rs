@@ -3,14 +3,9 @@ use std::borrow::Cow;
 use inno::entry::RegistryEntry;
 use ratatui::{
     buffer::Buffer,
-    layout::{
-        Alignment, Constraint,
-        Constraint::{Fill, Length, Max},
-        Layout, Rect,
-    },
-    prelude::{Modifier, StatefulWidget, Style, Widget},
-    style::palette::tailwind::SKY,
-    widgets::{Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, Table},
+    layout::{Constraint, Constraint::Max, Rect},
+    prelude::Widget,
+    widgets::{Row, Table},
 };
 
 use super::constraint::{index_width, width};
@@ -70,15 +65,6 @@ impl Widget for &mut RegistryEntries<'_> {
     where
         Self: Sized,
     {
-        let layout = Layout::horizontal([Fill(1), Length(1)]).split(area);
-
-        StatefulWidget::render(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight),
-            layout[1],
-            buf,
-            &mut self.scroll.scrollbar,
-        );
-
         let rows = self.registries.iter().enumerate().map(|(index, registry)| {
             Row::new([
                 Cow::Owned((index + 1).to_string()),
@@ -93,21 +79,12 @@ impl Widget for &mut RegistryEntries<'_> {
             ])
         });
 
-        StatefulWidget::render(
-            Table::new(rows, self.constraints)
-                .header(Row::new(HEADERS).style(Style::new().add_modifier(Modifier::BOLD)))
-                .column_spacing(2)
-                .block(
-                    Block::bordered()
-                        .title("Permissions")
-                        .title_alignment(Alignment::Center)
-                        .border_type(BorderType::Rounded)
-                        .padding(Padding::proportional(1)),
-                )
-                .row_highlight_style(Style::new().add_modifier(Modifier::REVERSED).fg(SKY.c400)),
-            layout[0],
+        self.scroll.render(
+            Table::new(rows, self.constraints).column_spacing(2),
+            HEADERS,
+            "Registry",
+            area,
             buf,
-            &mut self.scroll.state,
         );
     }
 }

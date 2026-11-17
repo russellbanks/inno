@@ -3,11 +3,18 @@ use std::io::{Read, Seek};
 use inno::Inno;
 use ratatui::{
     buffer::Buffer,
-    layout::Rect,
+    layout::{Position, Rect},
     prelude::Style,
     style::{Modifier, Stylize},
+    text::Line,
     widgets::{Tabs, Widget},
 };
+
+/// Columns of padding that [`Tabs`] draws on each side of a title by default.
+const TAB_PADDING_WIDTH: u16 = 1;
+
+/// Columns taken by the divider that [`Tabs`] draws between titles by default.
+const TAB_DIVIDER_WIDTH: u16 = 1;
 
 use super::{DeleteEntries, Messages, Page, Summary};
 
@@ -145,6 +152,38 @@ impl<'a> TabManager<'a> {
     pub const fn previous_tab(&mut self) {
         self.current_tab = self.current_tab.saturating_sub(1);
     }
+
+    /// Switches to the tab drawn at `position`, as a mouse click does, given the area the tabs
+    /// were rendered into. Clicks on a divider or past the last tab are ignored.
+    pub fn click(&mut self, position: Position, area: Rect) {
+        if let Some(index) = tab_at(self.pages().iter().map(Page::title), position, area) {
+            self.current_tab = index;
+        }
+    }
+}
+
+/// Returns the index of the tab whose title or padding is drawn at `position` when `titles` are
+/// rendered by [`Tabs`] into `area`, mirroring its default layout: `" title "`, then a one-column
+/// divider before the next title.
+fn tab_at<'t>(
+    titles: impl IntoIterator<Item = &'t str>,
+    position: Position,
+    area: Rect,
+) -> Option<usize> {
+    if !area.contains(position) {
+        return None;
+    }
+
+    let mut x = area.x;
+    for (index, title) in titles.into_iter().enumerate() {
+        let title_width = u16::try_from(Line::raw(title).width()).unwrap_or(u16::MAX);
+        let end = x.saturating_add(TAB_PADDING_WIDTH * 2 + title_width);
+        if position.x < end {
+            return (position.x >= x).then_some(index);
+        }
+        x = end.saturating_add(TAB_DIVIDER_WIDTH);
+    }
+    None
 }
 
 impl Widget for &TabManager<'_> {
@@ -156,5 +195,53 @@ impl Widget for &TabManager<'_> {
             .highlight_style(Style::new().add_modifier(Modifier::REVERSED).magenta())
             .select(self.current_tab)
             .render(area, buf);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ratatui::{
+        buffer::Buffer,
+        layout::{Position, Rect},
+        widgets::{Tabs, Widget},
+    };
+
+    use super::tab_at;
+
+    const TITLES: [&str; 3] = ["Header", "INI", "Files"];
+
+    fn at(x: u16) -> Option<usize> {
+        tab_at(TITLES, Position::new(x, 0), Rect::new(0, 0, 80, 1))
+    }
+
+    #[test]
+    fn layout_matches_rendered_tabs() {
+        let area = Rect::new(0, 0, 24, 1);
+        let mut buf = Buffer::empty(area);
+        Tabs::new(TITLES).render(area, &mut buf);
+        let rendered: String = buf.content().iter().map(|cell| cell.symbol()).collect();
+        assert_eq!(rendered, " Header │ INI │ Files   ");
+    }
+
+    #[test]
+    fn click_on_title_or_padding_selects_tab() {
+        // " Header │ INI │ Files "
+        assert_eq!(at(0), Some(0));
+        assert_eq!(at(7), Some(0));
+        assert_eq!(at(9), Some(1));
+        assert_eq!(at(13), Some(1));
+        assert_eq!(at(15), Some(2));
+        assert_eq!(at(21), Some(2));
+    }
+
+    #[test]
+    fn click_on_divider_or_past_end_is_ignored() {
+        assert_eq!(at(8), None);
+        assert_eq!(at(14), None);
+        assert_eq!(at(22), None);
+        assert_eq!(
+            tab_at(TITLES, Position::new(1, 1), Rect::new(0, 0, 80, 1)),
+            None
+        );
     }
 }

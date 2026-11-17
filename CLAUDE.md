@@ -68,7 +68,7 @@ Adding support for a new Inno Setup version usually means: bump `MAX_SUPPORTED_V
 `Inno` methods are thin delegates to `InnoInner`. When adding an accessor, add it to both.
 
 ## Architecture (cli)
-`cli/src/main.rs` handles `--debug` and `--extract`, and otherwise starts the TUI. `tabs.rs` and `page.rs` define a `Page` enum with one variant per entry type. Each module (`files.rs`, `registries.rs`, and so on) is a table widget with `next_row`/`previous_row`. A new page needs a `Page` variant plus matching arms in `App::scroll_up`, `App::scroll_down`, and `render`.
+`cli/src/main.rs` handles `--debug` and `--extract`, and otherwise starts the TUI. `tabs.rs` and `page.rs` define a `Page` enum with one variant per entry type. Each module (`files.rs`, `registries.rs`, and so on) is a table page that holds a `scroll::TableScroll` and draws itself through `TableScroll::render`. Pages supply only their rows, column widths, header cells, and title. `TableScroll` owns the frame, header, highlight, and scrollbar, plus selection, scrolling, and mouse hit-testing, so the hit-testing always matches what is drawn. Rows must be one line tall. A new page needs a `Page` variant plus matching arms in `Page::scroll_mut` and `Page`'s `Widget` impl in `page.rs`.
 
 ## Style
 - `rustfmt.toml`: `imports_granularity = "Crate"`, `group_imports = "StdExternalCrate"` (std / external / crate groups). Requires nightly rustfmt.

@@ -4,13 +4,12 @@ use inno::entry::File;
 use ratatui::{
     buffer::Buffer,
     layout::{
-        Alignment, Constraint,
-        Constraint::{Fill, Length, Max},
-        Layout, Rect,
+        Constraint,
+        Constraint::{Length, Max},
+        Rect,
     },
-    prelude::{Modifier, StatefulWidget, Style, Widget},
-    style::palette::tailwind::SKY,
-    widgets::{Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, Table},
+    prelude::Widget,
+    widgets::{Row, Table},
 };
 
 use super::constraint::{index_width, width};
@@ -75,15 +74,6 @@ impl Widget for &mut Files<'_> {
     where
         Self: Sized,
     {
-        let layout = Layout::horizontal([Fill(1), Length(1)]).split(area);
-
-        StatefulWidget::render(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight),
-            layout[1],
-            buf,
-            &mut self.scroll.scrollbar,
-        );
-
         let rows = self.files.iter().enumerate().map(|(index, file)| {
             Row::new([
                 Cow::Owned((index + 1).to_string()),
@@ -97,21 +87,12 @@ impl Widget for &mut Files<'_> {
             ])
         });
 
-        StatefulWidget::render(
-            Table::new(rows, self.constraints)
-                .header(Row::new(HEADERS).style(Style::new().add_modifier(Modifier::BOLD)))
-                .column_spacing(2)
-                .block(
-                    Block::bordered()
-                        .title("Files")
-                        .title_alignment(Alignment::Center)
-                        .border_type(BorderType::Rounded)
-                        .padding(Padding::proportional(1)),
-                )
-                .row_highlight_style(Style::new().add_modifier(Modifier::REVERSED).fg(SKY.c400)),
-            layout[0],
+        self.scroll.render(
+            Table::new(rows, self.constraints).column_spacing(2),
+            HEADERS,
+            "Files",
+            area,
             buf,
-            &mut self.scroll.state,
         );
     }
 }

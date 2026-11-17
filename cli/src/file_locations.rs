@@ -3,14 +3,9 @@ use std::borrow::Cow;
 use inno::entry::FileLocation;
 use ratatui::{
     buffer::Buffer,
-    layout::{
-        Alignment, Constraint,
-        Constraint::{Fill, Length, Max},
-        Flex, Layout, Rect,
-    },
-    prelude::{Modifier, StatefulWidget, Style, Widget},
-    style::palette::tailwind::SKY,
-    widgets::{Block, BorderType, Padding, Row, Scrollbar, ScrollbarOrientation, Table},
+    layout::{Constraint, Constraint::Max, Flex, Rect},
+    prelude::Widget,
+    widgets::{Row, Table},
 };
 
 use super::constraint::{index_width, width};
@@ -64,15 +59,6 @@ impl Widget for &mut FileLocations<'_> {
     where
         Self: Sized,
     {
-        let layout = Layout::horizontal([Fill(1), Length(1)]).split(area);
-
-        StatefulWidget::render(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight),
-            layout[1],
-            buf,
-            &mut self.scroll.scrollbar,
-        );
-
         let rows = self.file_locations.iter().enumerate().map(|(index, file)| {
             Row::new([
                 Cow::Owned((index + 1).to_string()),
@@ -84,22 +70,14 @@ impl Widget for &mut FileLocations<'_> {
             ])
         });
 
-        StatefulWidget::render(
+        self.scroll.render(
             Table::new(rows, self.constraints)
-                .header(Row::new(HEADERS).style(Style::new().add_modifier(Modifier::BOLD)))
                 .column_spacing(2)
-                .block(
-                    Block::bordered()
-                        .title("Files locations")
-                        .title_alignment(Alignment::Center)
-                        .border_type(BorderType::Rounded)
-                        .padding(Padding::proportional(1)),
-                )
-                .row_highlight_style(Style::new().add_modifier(Modifier::REVERSED).fg(SKY.c400))
                 .flex(Flex::Legacy),
-            layout[0],
+            HEADERS,
+            "Files locations",
+            area,
             buf,
-            &mut self.scroll.state,
         );
     }
 }

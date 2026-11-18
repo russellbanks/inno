@@ -11,6 +11,7 @@ use zerocopy::LE;
 use crate::{
     entry::{Bitness, Condition},
     header::flag_reader::read_flags::read_flags,
+    path::InnoPath,
     read::ReadBytesExt,
     version::{InnoVersion, windows_version::WindowsVersionRange},
 };
@@ -111,11 +112,12 @@ impl RunEntry {
         Ok(run_entry)
     }
 
-    /// Returns the name of the run entry as a string slice.
+    /// Returns the path of the program or file to run, such as
+    /// `{app}\MyApp.exe`.
     #[must_use]
     #[inline]
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
+    pub fn name(&self) -> Option<InnoPath<'_>> {
+        self.name.as_deref().map(InnoPath::new)
     }
 
     /// Returns parameters of the run entry as a string slice.

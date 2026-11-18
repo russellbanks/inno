@@ -65,6 +65,9 @@ Adding support for a new Inno Setup version usually means: bump `MAX_SUPPORTED_V
 ### Extraction (`extract` feature)
 `Inno::files()`, `filtered_files(pred)`, and `streaming_files(pred)` (in `core/src/iterator/`) read file data from the executable (`read::Embedded`) or from `.bin` slices next to it (`slice::Slices`; use `Inno::open(path)` or `.located_at(path)` so they can be found). `read/data_chunk.rs` and `read/chunk/` handle per-chunk compression (zlib, LZMA1, LZMA2), encryption (`encryption/`), and the CALL/JMP instruction filters (`entry/location/compression_filter.rs`). Checksums (CRC32, Adler32, MD5, SHA-1, SHA-256 in `entry/checksum/`) are verified as data is read. Many files can share one `FileLocation`, so iterators must not de-duplicate entries by location.
 
+### Path templates (`core/src/path/`)
+Fields that hold an Inno Setup path, such as `File::destination`, `Icon::filename`, or `Ini::file_path`, return `InnoPath<'_>` rather than `&str`. An `InnoPath` is a template mixing literal text with `{constants}`. `InnoPath::to_relative_path(resolver)` is the only way to turn one into a path that is safe to join onto a directory: it always rejects `..`, absolute paths, invalid characters, and reserved names such as `CON`. A `ResolveConstant` (`ByName`, or a closure via `path::from_fn`) decides what each constant expands to. Never join a raw destination string onto a directory. New getters for path fields should return `InnoPath` too.
+
 `Inno` methods are thin delegates to `InnoInner`. When adding an accessor, add it to both.
 
 ## Architecture (cli)

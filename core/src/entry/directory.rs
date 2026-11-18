@@ -7,6 +7,7 @@ use zerocopy::LE;
 use crate::{
     ReadBytesExt,
     entry::Condition,
+    path::InnoPath,
     string::PascalString,
     version::{InnoVersion, windows_version::WindowsVersionRange},
 };
@@ -60,11 +61,11 @@ impl Directory {
         Ok(directory)
     }
 
-    /// Returns the name of the directory.
+    /// Returns the path of the directory, such as `{app}\data`.
     #[must_use]
     #[inline]
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
+    pub fn name(&self) -> Option<InnoPath<'_>> {
+        self.name.as_deref().map(InnoPath::new)
     }
 
     /// Returns the permissions of the directory.

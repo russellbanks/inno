@@ -46,7 +46,10 @@ use files::Files;
 use icons::Icons;
 use indicatif::{ProgressBar, ProgressStyle};
 use ini::IniFiles;
-use inno::Inno;
+use inno::{
+    Inno,
+    path::{ByName, PathError},
+};
 use languages::Languages;
 use messages::Messages;
 use page::Page;
@@ -84,6 +87,7 @@ struct Args {
     #[arg(short, long)]
     extract: Option<PathBuf>,
 
+    /// Only extract files whose extracted path, such as `app/bin/foo.dll`, matches this regex
     #[arg(short, long)]
     filter: Option<Regex>,
 }
@@ -102,12 +106,14 @@ fn main() -> anyhow::Result<()> {
     if let Some(ref destination) = args.extract {
         fs::create_dir_all(destination)?;
 
+        // The filter matches the path the file is extracted to, such as `app/bin/foo.dll`.
         let files = inno.filtered_files(|file_entry| {
             args.filter.as_ref().is_none_or(|pattern| {
                 file_entry
                     .file()
                     .destination()
-                    .is_some_and(|file_destination| pattern.is_match(file_destination))
+                    .and_then(|destination| destination.to_relative_path(ByName).ok())
+                    .is_some_and(|path| pattern.is_match(&path.to_string()))
             })
         });
 
@@ -122,17 +128,25 @@ fn main() -> anyhow::Result<()> {
         for res in files {
             let (entry, data) = res?;
 
-            let Some(dest_path) = entry
-                .file()
-                .normalized_destination()
-                .filter(|dest| !dest.is_empty())
-            else {
+            let Some(file_destination) = entry.file().destination() else {
                 pb.inc(1);
                 continue;
             };
+            let relative_path = match file_destination.to_relative_path(ByName) {
+                Ok(relative_path) => relative_path,
+                Err(PathError::Empty) => {
+                    pb.inc(1);
+                    continue;
+                }
+                Err(error) => {
+                    pb.println(format!("Skipping {file_destination}: {error}"));
+                    pb.inc(1);
+                    continue;
+                }
+            };
 
-            let full_path = destination.join(&dest_path);
-            pb.set_message(dest_path);
+            let full_path = relative_path.join_onto(destination);
+            pb.set_message(relative_path.to_string());
 
             if let Some(parent) = full_path.parent() {
                 fs::create_dir_all(parent)?;

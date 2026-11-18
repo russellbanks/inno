@@ -5,7 +5,7 @@ use encoding_rs::Encoding;
 use zerocopy::LE;
 
 use super::Condition;
-use crate::{InnoVersion, ReadBytesExt, WindowsVersionRange};
+use crate::{InnoVersion, ReadBytesExt, WindowsVersionRange, path::InnoPath};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Ini {
@@ -50,11 +50,11 @@ impl Ini {
         Ok(ini)
     }
 
-    /// Returns the file path for the INI entry.
+    /// Returns the path of the INI file, such as `{app}\settings.ini`.
     #[must_use]
     #[inline]
-    pub fn file_path(&self) -> &str {
-        &self.file
+    pub fn file_path(&self) -> InnoPath<'_> {
+        InnoPath::new(&self.file)
     }
 
     /// Returns the section name for the INI entry.

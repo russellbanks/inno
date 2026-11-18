@@ -78,7 +78,7 @@ impl Widget for &mut Files<'_> {
             Row::new([
                 Cow::Owned((index + 1).to_string()),
                 Cow::Borrowed(file.source().unwrap_or_default()),
-                Cow::Borrowed(file.destination().unwrap_or_default()),
+                Cow::Borrowed(file.destination().unwrap_or_default().as_str()),
                 Cow::Borrowed(file.install_font_name().unwrap_or_default()),
                 Cow::Borrowed(file.strong_assembly_name().unwrap_or_default()),
                 Cow::Owned(file.external_size().to_string()),

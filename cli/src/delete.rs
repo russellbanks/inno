@@ -70,7 +70,7 @@ impl Widget for &mut DeleteEntries<'_> {
             .map(|(index, delete_entry)| {
                 Row::new([
                     Cow::Owned((index + 1).to_string()),
-                    Cow::Borrowed(delete_entry.name()),
+                    Cow::Borrowed(delete_entry.name().as_str()),
                     Cow::Borrowed(delete_entry.target_type().as_str()),
                 ])
             });

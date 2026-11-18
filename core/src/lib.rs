@@ -118,6 +118,7 @@ pub mod header;
 mod iterator;
 mod loader;
 mod lzma_stream_header;
+pub mod path;
 mod pe;
 mod read;
 mod slice;

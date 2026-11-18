@@ -55,7 +55,7 @@ impl Widget for &mut IniFiles<'_> {
         let rows = self.ini_files.iter().enumerate().map(|(i, ini)| {
             Row::new([
                 Cow::Owned((i + 1).to_string()),
-                Cow::Borrowed(ini.file_path()),
+                Cow::Borrowed(ini.file_path().as_str()),
                 Cow::Borrowed(ini.section_name().unwrap_or_default()),
                 Cow::Borrowed(ini.key_name().unwrap_or_default()),
                 Cow::Borrowed(ini.value().unwrap_or_default()),

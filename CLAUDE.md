@@ -9,7 +9,7 @@ A Cargo workspace with two crates:
 - **`core/`**: the `inno` library, published to crates.io. It is a read-only parser for Inno Setup installer `.exe` files and supports Inno Setup versions up to 7.1.x (`MAX_SUPPORTED_VERSION` in `core/src/lib.rs`). `#![forbid(unsafe_code)]`.
 - **root package (`cli/src/main.rs`)**: `innex`, a ratatui TUI and extractor built on `inno`. It serves as the reference consumer of the library. It is not published.
 
-Both crates share their version, edition (2024), and MSRV (1.93) through `[workspace.package]`. The project's reference implementations are innoextract and the Inno Setup source (`jrsoftware/issrc`). Code comments often link to specific `issrc` tags, and fixes are often described as matching innoextract's behavior.
+Both crates share their version and edition (2024) through `[workspace.package]`. `inno`'s MSRV is the workspace's (1.93). innex declares its own, 1.100, because it uses `std::mem::DropGuard`; it is not published, so this does not affect library users. Do not use newer-than-1.93 APIs in `core/`. The project's reference implementations are innoextract and the Inno Setup source (`jrsoftware/issrc`). Code comments often link to specific `issrc` tags, and fixes are often described as matching innoextract's behavior.
 
 ## Commands
 
@@ -71,7 +71,12 @@ Fields that hold an Inno Setup path, such as `File::destination`, `Icon::filenam
 `Inno` methods are thin delegates to `InnoInner`. When adding an accessor, add it to both.
 
 ## Architecture (cli)
-`cli/src/main.rs` handles `--debug` and `--extract`, and otherwise starts the TUI. `tabs.rs` and `page.rs` define a `Page` enum with one variant per entry type. Each module (`files.rs`, `registries.rs`, and so on) is a table page that holds a `scroll::TableScroll` and draws itself through `TableScroll::render`. Pages supply only their rows, column widths, header cells, and title. `TableScroll` owns the frame, header, highlight, and scrollbar, plus selection, scrolling, and mouse hit-testing, so the hit-testing always matches what is drawn. Rows must be one line tall. A new page needs a `Page` variant plus matching arms in `Page::scroll_mut` and `Page`'s `Widget` impl in `page.rs`.
+`cli/src/main.rs` only dispatches on the `args::Command` that `args.rs` parses: `View` runs the TUI (`tui/`), `Dump` prints the parsed structure, and `Extract` runs `extract.rs`. `extract.rs` streams each file through `Inno::streaming_files` into a `.part` file, which is renamed into place once the checksum has passed.
+
+The TUI (`cli/src/tui/`):
+- `pages/` has one module per entry type. Each one only returns an `EntryTable` built from a list of `Column`s: a header, a cell function, and a sizing (`Column::new` sizes to the widest cell, `.fixed()` stops it shrinking, `.fill()` takes leftover width). `pages::all` builds the tabs in order and drops empty tables. To add a page, write a module with a `table` function and add it to `pages::all`. The title passed to `EntryTable::new` is used for both the tab and the frame.
+- `table/` holds the table machinery. `ScrollModel` is the view offset and the selection, with no drawing. `TableView` draws the frame, header, highlight, hover, and scrollbar, and records the geometry it drew. All mouse hit-testing (`row_at`, `scrollbar_hit`, `press`, `drag`) uses that recorded geometry, so it always matches the screen. `EntryTable` measures column widths once with the same cell functions it draws with, and builds only the rows in view. Rows must be one line tall.
+- `input.rs` turns crossterm events into `Action`s. `App::update(Action)` (`app.rs`) applies them to the `TabBar` (`tabs.rs`) or to the current page's `TableView`, so behaviour can be tested without a terminal. `terminal::init` returns a `std::mem::DropGuard` around the terminal that restores it, including mouse capture, when dropped, which also happens during a panic. A chained panic hook turns mouse capture off if a panic aborts instead of unwinding.
 
 ## Style
 - `rustfmt.toml`: `imports_granularity = "Crate"`, `group_imports = "StdExternalCrate"` (std / external / crate groups). Requires nightly rustfmt.

@@ -6,7 +6,7 @@ use ratatui::text::Span;
 ///
 /// Each cell is measured exactly as it is drawn, by formatting it with [`Display`] and measuring
 /// the result in terminal columns (not bytes), so non-ASCII text, negative numbers and flag sets
-/// are all sized correctly. Pass each cell the same way the row renders it.
+/// are all sized correctly.
 ///
 /// A column whose cells are all empty is collapsed to a width of `0`.
 pub fn width<I>(header: &str, cells: I) -> u16
@@ -38,4 +38,33 @@ where
 /// Returns the display width of the row number (`#`) column for a table with `len` rows.
 pub fn index_width(len: usize) -> u16 {
     width("#", [len])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{index_width, width};
+
+    #[test]
+    fn measures_widest_of_header_and_cells() {
+        assert_eq!(width("Name", ["a", "abcdef"]), 6);
+        assert_eq!(width("Header", ["a"]), 6);
+    }
+
+    #[test]
+    fn measures_terminal_columns_not_bytes() {
+        assert_eq!(width("#", ["日本"]), 4);
+        assert_eq!(width("#", ["café"]), 4);
+    }
+
+    #[test]
+    fn empty_column_collapses() {
+        assert_eq!(width("Header", ["", ""]), 0);
+        assert_eq!(width("Header", [""; 0]), 0);
+    }
+
+    #[test]
+    fn index_width_fits_last_row_number() {
+        assert_eq!(index_width(9), 1);
+        assert_eq!(index_width(1000), 4);
+    }
 }

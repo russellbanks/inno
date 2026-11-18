@@ -48,7 +48,8 @@ The following are a list of [Cargo features][cargo-features] that can be enabled
 
 - **chrono**: Enables converting a file's created at time to a [`DateTime<UTC>`].
 - **jiff**: Enables converting a file's created at time to a [`Timestamp`].
-- **extract**: Enables extracting file contents and verifying their checksums.
+- **extract**: Enables extracting file contents and verifying their checksums. File data stored
+  uncompressed or compressed with zlib, BZip2, LZMA1 or LZMA2 can be decoded.
 
 # What this crate provides
 
@@ -72,9 +73,10 @@ changes. In that case, you will get [`InnoError::UnsupportedVersion`].
 
 # Features
 
-- LZMA/BZip2/Deflate detection through header metadata.
-- LZMA1 decompression of the Inno header stream via the pure-Rust `lzma-rust2`
-  crate, with no C dependency or native toolchain required.
+- Detection of each installer's compression method (stored, zlib, BZip2, LZMA1 or LZMA2) from its
+  header metadata.
+- Decompression in pure Rust, with no C dependency or native toolchain required: `lzma-rust2` for
+  LZMA, `flate2` for zlib, and, with **extract**, `bzip2` using its Rust port of libbzip2.
 
 # Error handling
 

@@ -1,19 +1,18 @@
 use std::{fmt, io};
 
-use zerocopy::{Immutable, KnownLayout, TryFromBytes, try_transmute};
+use zerocopy::{Immutable, KnownLayout, TryFromBytes};
 
 use super::HeaderFlags;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Immutable, KnownLayout, TryFromBytes)]
 #[repr(u8)]
 pub enum Compression {
+    #[default]
     Stored = 0,
     Zlib = 1,
     BZip2 = 2,
     LZMA1 = 3,
     LZMA2 = 4,
-    #[default]
-    Unknown = u8::MAX, // Set to u8::MAX to avoid conflicts with future variants
 }
 
 impl Compression {
@@ -37,7 +36,6 @@ impl Compression {
             Self::BZip2 => "BZip2",
             Self::LZMA1 => "LZMA1",
             Self::LZMA2 => "LZMA2",
-            Self::Unknown => "Unknown",
         }
     }
 
@@ -52,12 +50,6 @@ impl Compression {
 impl fmt::Display for Compression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.as_str().fmt(f)
-    }
-}
-
-impl From<u8> for Compression {
-    fn from(value: u8) -> Self {
-        try_transmute!(value).unwrap_or_default()
     }
 }
 

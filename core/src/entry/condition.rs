@@ -4,7 +4,7 @@ use encoding_rs::Encoding;
 
 use crate::{read::ReadBytesExt, version::InnoVersion};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Condition {
     components: Option<String>,
     tasks: Option<String>,
@@ -89,5 +89,49 @@ impl Condition {
     #[inline]
     pub fn before_install(&self) -> Option<&str> {
         self.before_install.as_deref()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use encoding_rs::UTF_8;
+
+    use super::Condition;
+    use crate::version::InnoVersion;
+
+    /// A pascal string as the reader expects it: a little-endian length,
+    /// then the bytes.
+    fn pascal(value: &str) -> Vec<u8> {
+        let mut out = u32::try_from(value.len()).unwrap().to_le_bytes().to_vec();
+        out.extend_from_slice(value.as_bytes());
+        out
+    }
+
+    #[test]
+    fn the_six_strings_land_in_the_order_the_format_writes_them() {
+        // after_install really does come before before_install on the wire.
+        // Swapping them still parses and still produces two plausible
+        // strings, so the mistake would be a quiet one.
+        let mut data = Vec::new();
+        for field in [
+            "components",
+            "tasks",
+            "languages",
+            "check",
+            "after",
+            "before",
+        ] {
+            data.extend_from_slice(&pascal(field));
+        }
+
+        let condition =
+            Condition::read(data.as_slice(), UTF_8, InnoVersion::new(5, 6, 2, 0)).unwrap();
+
+        assert_eq!(condition.as_str(), Some("components"));
+        assert_eq!(condition.tasks(), Some("tasks"));
+        assert_eq!(condition.languages(), Some("languages"));
+        assert_eq!(condition.check(), Some("check"));
+        assert_eq!(condition.after_install(), Some("after"));
+        assert_eq!(condition.before_install(), Some("before"));
     }
 }

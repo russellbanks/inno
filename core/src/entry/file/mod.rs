@@ -33,6 +33,9 @@ pub struct File {
     download_password: Option<String>,
     extract_archive_password: Option<String>,
     verification: Option<FileVerification>,
+    /// The conditions under which this file is installed, and the script
+    /// called before and after installing it.
+    condition: Condition,
     /// Index into the file location entry list
     location: u32,
     attributes: u32,
@@ -68,7 +71,7 @@ impl File {
             file.strong_assembly_name = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        Condition::read(&mut reader, codepage, version)?;
+        file.condition = Condition::read(&mut reader, codepage, version)?;
 
         if version >= 6.5 {
             file.excludes = reader.read_decoded_pascal_string(codepage)?;
@@ -237,6 +240,17 @@ impl File {
     pub const fn r#type(&self) -> FileType {
         self.r#type
     }
+
+    /// Returns the conditions under which this file is installed.
+    ///
+    /// GOG.com installers carry the file's real name here, in the script
+    /// called after installing it, because the file itself is stored under a
+    /// content-addressed name in the temporary directory.
+    #[must_use]
+    #[inline]
+    pub const fn condition(&self) -> &Condition {
+        &self.condition
+    }
 }
 
 impl Default for File {
@@ -252,6 +266,7 @@ impl Default for File {
             download_password: None,
             extract_archive_password: None,
             verification: None,
+            condition: Condition::default(),
             location: 0,
             attributes: 0,
             external_size: 0,

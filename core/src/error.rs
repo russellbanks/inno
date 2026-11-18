@@ -30,8 +30,6 @@ pub enum InnoError {
         location: &'static str,
         inner: ChecksumMismatchError,
     },
-    #[error("Unsupported {0} compression")]
-    UnsupportedCompression(super::header::Compression),
     #[cfg(feature = "extract")]
     #[error("Encrypted installers are not supported for extraction")]
     Encrypted,

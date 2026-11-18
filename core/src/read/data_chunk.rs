@@ -3,6 +3,7 @@ use std::{
     io::{self, Error, ErrorKind, Read, Take},
 };
 
+use bzip2::read::BzDecoder;
 use flate2::read::ZlibDecoder;
 use lzma_rust2::{Lzma2Reader, LzmaReader};
 use zerocopy::{KnownLayout, TryFromBytes};
@@ -12,8 +13,7 @@ use crate::{
     error::{InnoError, InnoResult},
     header::Compression,
     lzma_stream_header::LzmaStreamHeader,
-    read::DataSource,
-    read::chunk::Chunk,
+    read::{DataSource, chunk::Chunk},
 };
 
 /// Magic bytes at the start of each data chunk.
@@ -58,6 +58,7 @@ impl fmt::Display for ZlibID {
 pub enum DataChunkReader<R: Read> {
     Stored(Take<R>),
     Zlib(ZlibDecoder<Take<R>>),
+    Bzip2(BzDecoder<Take<R>>),
     Lzma1(Box<LzmaReader<Take<R>>>),
     Lzma2(Box<Lzma2Reader<Take<R>>>),
 }
@@ -104,6 +105,7 @@ impl<R: DataSource> DataChunkReader<R> {
         match chunk.compression() {
             Compression::Stored => Ok(Self::Stored(chunk_reader)),
             Compression::Zlib => Ok(Self::Zlib(ZlibDecoder::new(chunk_reader))),
+            Compression::BZip2 => Ok(Self::Bzip2(BzDecoder::new(chunk_reader))),
             Compression::LZMA1 => {
                 let header = chunk_reader.read_t::<LzmaStreamHeader>()?;
                 let lzma = LzmaReader::new_with_props(
@@ -124,7 +126,6 @@ impl<R: DataSource> DataChunkReader<R> {
                     None,
                 ))))
             }
-            other => Err(InnoError::UnsupportedCompression(other)),
         }
     }
 
@@ -136,6 +137,7 @@ impl<R: DataSource> DataChunkReader<R> {
         match self {
             Self::Stored(reader) => reader,
             Self::Zlib(reader) => reader.get_ref(),
+            Self::Bzip2(reader) => reader.get_ref(),
             Self::Lzma1(reader) => reader.inner(),
             Self::Lzma2(reader) => reader.inner(),
         }
@@ -149,6 +151,7 @@ impl<R: DataSource> DataChunkReader<R> {
         match self {
             Self::Stored(reader) => reader,
             Self::Zlib(reader) => reader.get_mut(),
+            Self::Bzip2(reader) => reader.get_mut(),
             Self::Lzma1(reader) => reader.inner_mut(),
             Self::Lzma2(reader) => reader.inner_mut(),
         }
@@ -160,6 +163,7 @@ impl<R: DataSource> DataChunkReader<R> {
         match self {
             Self::Stored(reader) => reader,
             Self::Zlib(reader) => reader.into_inner(),
+            Self::Bzip2(reader) => reader.into_inner(),
             Self::Lzma1(reader) => reader.into_inner(),
             Self::Lzma2(reader) => reader.into_inner(),
         }
@@ -171,8 +175,83 @@ impl<R: Read> Read for DataChunkReader<R> {
         match self {
             Self::Stored(reader) => reader.read(buf),
             Self::Zlib(reader) => reader.read(buf),
+            Self::Bzip2(reader) => reader.read(buf),
             Self::Lzma1(reader) => reader.read(buf),
             Self::Lzma2(reader) => reader.read(buf),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{Cursor, Read};
+
+    use bzip2::read::BzEncoder;
+
+    use super::DataChunkReader;
+    use crate::{
+        header::Compression,
+        read::{Embedded, chunk::Chunk},
+    };
+
+    /// A payload that spans several bzip2 blocks and does not compress to
+    /// nothing.
+    fn payload() -> Vec<u8> {
+        (0..300_000_u32)
+            .map(|i| (i.wrapping_mul(2_654_435_761) >> 24) as u8)
+            .collect()
+    }
+
+    /// Lays out a BZip2 data chunk as Inno Setup writes it, followed by
+    /// `trailing`, and returns the bytes and the chunk describing them.
+    fn bzip2_chunk(payload: &[u8], trailing: &[u8]) -> (Vec<u8>, Chunk) {
+        let mut compressed = Vec::new();
+        BzEncoder::new(payload, bzip2::Compression::best())
+            .read_to_end(&mut compressed)
+            .unwrap();
+
+        let chunk = Chunk {
+            original_size: compressed.len() as u64,
+            compression: Compression::BZip2,
+            ..Chunk::default()
+        };
+
+        let mut data = b"zlb".to_vec();
+        data.extend_from_slice(&compressed);
+        data.extend_from_slice(trailing);
+        (data, chunk)
+    }
+
+    #[test]
+    fn a_bzip2_chunk_decodes_to_its_payload() {
+        let payload = payload();
+        let (data, chunk) = bzip2_chunk(&payload, &[]);
+
+        let mut reader = DataChunkReader::new(Embedded::new(Cursor::new(data), 0), &chunk).unwrap();
+        let mut out = Vec::new();
+        reader.read_to_end(&mut out).unwrap();
+        assert!(
+            out == payload,
+            "decoded {} bytes, expected {}",
+            out.len(),
+            payload.len()
+        );
+    }
+
+    #[test]
+    fn a_bzip2_chunk_ends_at_its_boundary() {
+        // The next chunk's magic follows in a real installer.
+        let payload = payload();
+        let (data, chunk) = bzip2_chunk(&payload, b"zlb and whatever comes next");
+
+        let mut reader = DataChunkReader::new(Embedded::new(Cursor::new(data), 0), &chunk).unwrap();
+        let mut out = Vec::new();
+        reader.read_to_end(&mut out).unwrap();
+        assert!(
+            out == payload,
+            "decoded {} bytes, expected {}",
+            out.len(),
+            payload.len()
+        );
     }
 }

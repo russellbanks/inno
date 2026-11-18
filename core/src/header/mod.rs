@@ -366,13 +366,13 @@ impl Header {
                 0 => Compression::Stored,
                 1 => Compression::BZip2,
                 2 => Compression::LZMA1,
-                _ => Compression::Unknown,
+                value => return Err(unknown_compression(value).into()),
             };
         } else if version >= (4, 1, 5) {
             header.compression = match reader.read_u8()? {
                 0 => Compression::Zlib,
                 1 => Compression::BZip2,
-                _ => Compression::Unknown,
+                value => return Err(unknown_compression(value).into()),
             };
         }
         if ((5, 1)..(6, 3)).contains(&version) {
@@ -1337,6 +1337,15 @@ impl Header {
     pub const fn uninstall_display_size(&self) -> u64 {
         self.uninstall_display_size
     }
+}
+
+/// The error for a stored compression method that this version of Inno Setup
+/// does not define, as [`Compression::try_read_from_io`] returns for later ones.
+fn unknown_compression(value: u8) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!("unknown compression method {value}"),
+    )
 }
 
 fn password_salt<const LEN: usize>(reader: &mut impl io::Read) -> io::Result<String> {

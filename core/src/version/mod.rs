@@ -138,7 +138,7 @@ impl InnoVersion {
         );
 
         // Inno Setup 6.3.0 and above is always only Unicode
-        if inno_version >= 6.3 {
+        if inno_version >= (6, 3) {
             return Some(inno_version);
         }
 
@@ -485,13 +485,6 @@ impl PartialEq<u8> for InnoVersion {
     }
 }
 
-impl PartialEq<f32> for InnoVersion {
-    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    fn eq(&self, &version: &f32) -> bool {
-        *self == Self::new(version as u8, ((version * 10.0) as u8) % 10, 0, 0)
-    }
-}
-
 impl PartialEq<InnoVersion> for (u8, u8, u8, u8) {
     fn eq(&self, version: &InnoVersion) -> bool {
         *self == version.as_tuple()
@@ -513,13 +506,6 @@ impl PartialEq<InnoVersion> for (u8, u8) {
 impl PartialEq<InnoVersion> for u8 {
     fn eq(&self, version: &InnoVersion) -> bool {
         (*self, 0, 0, 0) == version.as_tuple()
-    }
-}
-
-impl PartialEq<InnoVersion> for f32 {
-    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    fn eq(&self, version: &InnoVersion) -> bool {
-        (*self as u8, ((self * 10.0) as u8) % 10, 0, 0) == version.as_tuple()
     }
 }
 
@@ -547,18 +533,6 @@ impl PartialOrd<u8> for InnoVersion {
     }
 }
 
-impl PartialOrd<f32> for InnoVersion {
-    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    fn partial_cmp(&self, &version: &f32) -> Option<Ordering> {
-        self.partial_cmp(&Self::new(
-            version as u8,
-            ((version * 10.0) as u8) % 10,
-            0,
-            0,
-        ))
-    }
-}
-
 impl PartialOrd<InnoVersion> for (u8, u8, u8, u8) {
     fn partial_cmp(&self, version: &InnoVersion) -> Option<Ordering> {
         self.partial_cmp(&version.as_tuple())
@@ -580,13 +554,6 @@ impl PartialOrd<InnoVersion> for (u8, u8) {
 impl PartialOrd<InnoVersion> for u8 {
     fn partial_cmp(&self, version: &InnoVersion) -> Option<Ordering> {
         (*self, 0, 0, 0).partial_cmp(&version.as_tuple())
-    }
-}
-
-impl PartialOrd<InnoVersion> for f32 {
-    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    fn partial_cmp(&self, version: &InnoVersion) -> Option<Ordering> {
-        (*self as u8, ((self * 10.0) as u8) % 10, 0, 0).partial_cmp(&version.as_tuple())
     }
 }
 
@@ -736,39 +703,6 @@ mod tests {
         assert_eq!(
             1.partial_cmp(&InnoVersion::new(1, 0, 0, 0)),
             Some(Ordering::Equal)
-        );
-    }
-
-    #[test]
-    fn inno_version_float_equality() {
-        // Check (in)equality of `PartialEq<f32> for InnoVersion`
-        assert_eq!(InnoVersion::new(1, 2, 0, 0), 1.2);
-        assert_ne!(InnoVersion::new(1, 2, 3, 4), 1.2);
-        assert_ne!(InnoVersion::new(1, 2, 3, 4), 1.234);
-
-        // Check that `PartialCmp<f32> for InnoVersion` returns the same equality
-        assert_eq!(
-            InnoVersion::new(1, 2, 0, 0).partial_cmp(&1.2),
-            Some(Ordering::Equal)
-        );
-        assert_eq!(
-            InnoVersion::new(1, 2, 3, 4).partial_cmp(&1.2),
-            Some(Ordering::Greater)
-        );
-
-        // Check (in)equality of `PartialEq<InnoVersion> for f32`
-        assert_eq!(1.2, InnoVersion::new(1, 2, 0, 0));
-        assert_ne!(1.2, InnoVersion::new(1, 2, 3, 4));
-        assert_ne!(1.234, InnoVersion::new(1, 2, 3, 4));
-
-        // Check that `PartialCmp<InnoVersion> for f32` returns the same equality
-        assert_eq!(
-            1.2.partial_cmp(&InnoVersion::new(1, 2, 0, 0)),
-            Some(Ordering::Equal)
-        );
-        assert_eq!(
-            1.2.partial_cmp(&InnoVersion::new(1, 2, 3, 4)),
-            Some(Ordering::Less)
         );
     }
 

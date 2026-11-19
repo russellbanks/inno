@@ -196,7 +196,7 @@ impl InnoInner {
         setup_loader: SetupLoader,
         inno_version: InnoVersion,
     ) -> InnoResult<Self> {
-        let encryption_header = if inno_version >= 6.5 {
+        let encryption_header = if inno_version >= (6, 5) {
             Some(EncryptionHeader::read(&mut reader, inno_version)?)
         } else {
             None

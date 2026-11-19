@@ -48,7 +48,7 @@ impl<R: Read> InnoStreamReader<R> {
         let mut crc32_reader = Crc32Reader::new(reader);
 
         let compression = if version >= (4, 0, 9) {
-            let size = if version >= 6.7 {
+            let size = if version >= (6, 7) {
                 crc32_reader.read_u64::<LE>()?
             } else {
                 crc32_reader.read_u32::<LE>()?.into()

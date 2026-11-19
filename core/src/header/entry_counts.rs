@@ -42,7 +42,7 @@ impl EntryCounts {
             counts.custom_message = reader.read_u32::<LE>()?;
         }
 
-        if version >= 4.1 {
+        if version >= (4, 1) {
             counts.permission = reader.read_u32::<LE>()?;
         }
 
@@ -57,7 +57,7 @@ impl EntryCounts {
 
         counts.directory = reader.read_u32::<LE>()?;
 
-        if version >= 6.5 {
+        if version >= (6, 5) {
             counts.is_sig_key = reader.read_u32::<LE>()?;
         }
 

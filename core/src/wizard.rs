@@ -34,16 +34,16 @@ impl Wizard {
             wizard.small_images = Self::read_images(&mut reader, version)?;
         }
 
-        if version >= 6.7 {
+        if version >= (6, 7) {
             wizard.back_images = Self::read_images(&mut reader, version)?;
         }
 
-        if version >= 6.6 {
+        if version >= (6, 6) {
             wizard.images_dynamic_dark = Self::read_images(&mut reader, version)?;
             wizard.small_images_dynamic_dark = Self::read_images(&mut reader, version)?;
         }
 
-        if version >= 6.7 {
+        if version >= (6, 7) {
             wizard.back_images_dynamic_dark = Self::read_images(&mut reader, version)?;
         }
 
@@ -55,7 +55,7 @@ impl Wizard {
         }
 
         // Inno Setup 6.4 replaced ISCrypt.dll with built-in encryption
-        if version < 6.4 && header.flags.contains(HeaderFlags::ENCRYPTION_USED) {
+        if version < (6, 4) && header.flags.contains(HeaderFlags::ENCRYPTION_USED) {
             wizard.decrypt_dll = reader.read_raw_pascal_string()?;
         }
 
@@ -66,7 +66,7 @@ impl Wizard {
     where
         R: io::Read,
     {
-        let count = if version >= 5.6 {
+        let count = if version >= (5, 6) {
             reader.read_i32::<LE>()?
         } else {
             1
@@ -80,7 +80,7 @@ impl Wizard {
             .map(|_| reader.read_raw_pascal_string())
             .collect::<io::Result<Vec<_>>>()?;
 
-        if version < 5.6 && images.first().is_some_and(Vec::is_empty) {
+        if version < (5, 6) && images.first().is_some_and(Vec::is_empty) {
             images.clear();
         }
 

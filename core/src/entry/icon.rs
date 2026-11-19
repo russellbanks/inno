@@ -36,7 +36,7 @@ impl Icon {
     where
         R: io::Read,
     {
-        if version < 1.3 {
+        if version < (1, 3) {
             let _uncompressed_size = reader.read_u32::<LE>()?;
         }
 
@@ -56,7 +56,7 @@ impl Icon {
             icon.app_user_model_id = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        if version >= 6.1 {
+        if version >= (6, 1) {
             let mut buf = [0; 16];
             reader.read_exact(&mut buf)?;
             icon.app_user_model_toast_activator_clsid = codepage.decode(&buf).0.into_owned();
@@ -84,8 +84,8 @@ impl Icon {
             [IconFlags::CREATE_ONLY_IF_FILE_EXISTS, IconFlags::USE_APP_PATHS],
             if ((5, 0, 3)..(6, 3, 0)).contains(&version) => IconFlags::FOLDER_SHORTCUT,
             if version >= (5, 4, 2) => IconFlags::EXCLUDE_FROM_SHOW_IN_NEW_INSTALL,
-            if version >= 5.5 => IconFlags::PREVENT_PINNING,
-            if version >= 6.1 => IconFlags::HAS_APP_USER_MODEL_TOAST_ACTIVATOR_CLSID
+            if version >= (5, 5) => IconFlags::PREVENT_PINNING,
+            if version >= (6, 1) => IconFlags::HAS_APP_USER_MODEL_TOAST_ACTIVATOR_CLSID
         )?;
 
         Ok(icon)

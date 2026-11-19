@@ -38,7 +38,7 @@ impl RegistryEntry {
     where
         R: io::Read,
     {
-        if version < 1.3 {
+        if version < (1, 3) {
             let _uncompressed_size = reader.read_u32::<LE>()?;
         }
 
@@ -60,7 +60,7 @@ impl RegistryEntry {
         registry.reg_root =
             try_transmute!(reader.read_u32::<LE>()? & !0x8000_0000).unwrap_or_default();
 
-        if version >= 4.1 {
+        if version >= (4, 1) {
             registry.permission = reader.read_i16::<LE>()?;
         }
 
@@ -82,7 +82,7 @@ impl RegistryEntry {
             if version >= (1, 3, 9) => [RegistryFlags::DELETE_KEY, RegistryFlags::DELETE_VALUE],
             if version >= (1, 3, 12) => RegistryFlags::NO_ERROR,
             if version >= (1, 3, 16) => RegistryFlags::DONT_CREATE_KEY,
-            if version >= 5.1 && version < (7, 0, 0, 3) => [RegistryFlags::BITS_32, RegistryFlags::BITS_64]
+            if version >= (5, 1) && version < (7, 0, 0, 3) => [RegistryFlags::BITS_32, RegistryFlags::BITS_64]
         )?;
 
         if registry.bitness == Bitness::Bit32 {

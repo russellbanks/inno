@@ -45,7 +45,7 @@ impl WizardSettings {
             wizard_settings.small_image_back_color = reader.read_t::<Color>()?;
         }
 
-        if (6.0..6.6).contains(&version) {
+        if ((6, 0)..(6, 6)).contains(&version) {
             wizard_settings.style = WizardStyle::try_read_from(&mut reader, version)?;
         }
 
@@ -53,7 +53,7 @@ impl WizardSettings {
             wizard_settings.size_percent = reader.read_t::<WizardSizePercent>()?;
         }
 
-        if version >= 6.6 {
+        if version >= (6, 6) {
             wizard_settings.style = WizardStyle::try_read_from(&mut reader, version)?;
         }
 

@@ -41,7 +41,7 @@ impl Condition {
             condition.check = reader.read_decoded_pascal_string(codepage)?;
         }
 
-        if version >= 4.1 {
+        if version >= (4, 1) {
             condition.after_install = reader.read_decoded_pascal_string(codepage)?;
             condition.before_install = reader.read_decoded_pascal_string(codepage)?;
         }

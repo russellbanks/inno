@@ -48,11 +48,11 @@ Everything in `core/tests/` is `#[ignore]`d because these tests download officia
 5. **Text decoding**: Unicode installers use UTF-16LE. ANSI installers use a codepage taken from the language entries, with Windows-1252 as the fallback. `Header::decode(codepage)` runs after the languages are read.
 
 ### Version-gated field reading (the core pattern)
-Every entry type in `core/src/entry/` and the header in `core/src/header/` has a `read(reader, codepage, version)` that mirrors the Inno Setup struct for that version. Fields are added, removed, or widened according to version comparisons. `InnoVersion` implements `PartialOrd` against `u8`, `f32`, and tuples, so all of these work:
+Every entry type in `core/src/entry/` and the header in `core/src/header/` has a `read(reader, codepage, version)` that mirrors the Inno Setup struct for that version. Fields are added, removed, or widened according to version comparisons. `InnoVersion` implements `PartialOrd` against `u8` and tuples, so all of these work:
 
 ```rust
 if version >= (4, 0, 1) { ... }          // tuple
-if version >= 6.7 { ... }                // f32 → (major, minor)
+if version >= (6, 7) { ... }             // (major, minor)
 if version >= 4 || (version.is_isx() && version >= (1, 3, 24)) { ... }
 ```
 

@@ -127,24 +127,24 @@ impl Header {
     {
         let mut header = Self::default();
 
-        if version < 1.3 {
+        if version < (1, 3) {
             let _uncompressed_size = reader.read_u32::<LE>()?;
         }
 
         header.app_name = reader.read_pascal_string()?;
         header.app_versioned_name = reader.read_pascal_string()?;
-        if version >= 1.3 {
+        if version >= (1, 3) {
             header.app_id = reader.read_pascal_string()?;
         }
         header.app_copyright = reader.read_pascal_string()?;
-        if version >= 1.3 {
+        if version >= (1, 3) {
             header.app_publisher = reader.read_pascal_string()?;
             header.app_publisher_url = reader.read_pascal_string()?;
         }
         if version >= (5, 1, 13) {
             header.app_support_phone = reader.read_pascal_string()?;
         }
-        if version >= 1.3 {
+        if version >= (1, 3) {
             header.app_support_url = reader.read_pascal_string()?;
             header.app_updates_url = reader.read_pascal_string()?;
             header.app_version = reader.read_pascal_string()?;
@@ -195,7 +195,7 @@ impl Header {
         if version >= (5, 3, 10) {
             header.uninstallable = reader.read_pascal_string()?;
         }
-        if version >= 5.5 {
+        if version >= (5, 5) {
             header.close_applications_filter = reader.read_pascal_string()?;
         }
         if version >= (5, 5, 6) {
@@ -205,17 +205,17 @@ impl Header {
             header.changes_environment = reader.read_pascal_string()?;
             header.changes_associations = reader.read_pascal_string()?;
         }
-        if version >= 6.3 {
+        if version >= (6, 3) {
             header.architectures_allowed_expr = reader.read_pascal_string()?;
             header.architectures_install_in_64_bit_mode_expr = reader.read_pascal_string()?;
         }
         if version >= (6, 4, 2) {
             header.close_applications_filter_excludes = reader.read_pascal_string()?;
         }
-        if version >= 6.5 {
+        if version >= (6, 5) {
             header.seven_zip_library_name = reader.read_pascal_string()?;
         }
-        if version >= 6.7 {
+        if version >= (6, 7) {
             header.use_previous_app_dir = reader.read_pascal_string()?;
             header.use_previous_group = reader.read_pascal_string()?;
             header.use_previous_setup_type = reader.read_pascal_string()?;
@@ -242,17 +242,17 @@ impl Header {
         if version >= (7, 0, 0, 3) {
             header.compiled_code_version = Some(reader.read_u32::<LE>()?);
         }
-        let license_size = if version < 1.3 {
+        let license_size = if version < (1, 3) {
             reader.read_u32::<LE>()?
         } else {
             0
         };
-        let info_before_size = if version < 1.3 {
+        let info_before_size = if version < (1, 3) {
             reader.read_u32::<LE>()?
         } else {
             0
         };
-        let info_after_size = if version < 1.3 {
+        let info_after_size = if version < (1, 3) {
             reader.read_u32::<LE>()?
         } else {
             0
@@ -265,12 +265,12 @@ impl Header {
             header.background_color2 = reader.read_t::<Color>()?;
         }
         header.wizard = WizardSettings::read_from(&mut reader, version)?;
-        if (6.4..6.5).contains(&version) {
+        if ((6, 4)..(6, 5)).contains(&version) {
             header.encryption_header = Some(EncryptionHeader::read(&mut reader, version)?);
-        } else if version < 6.4 {
+        } else if version < (6, 4) {
             let _password_hash = if version >= (5, 3, 9) {
                 Checksum::read_sha1(&mut reader)?
-            } else if version >= 4.2 {
+            } else if version >= (4, 2) {
                 Checksum::read_md5(&mut reader)?
             } else {
                 Checksum::read_crc32(&mut reader)?
@@ -288,16 +288,16 @@ impl Header {
             header.wizard.image_back_color = reader.read_t::<Color>()?;
             header.wizard.small_image_back_color = reader.read_t::<Color>()?;
 
-            if version >= 6.7 {
+            if version >= (6, 7) {
                 header.wizard.back_color = reader.read_t::<Color>()?;
             }
         }
 
-        if version >= 6.6 {
+        if version >= (6, 6) {
             header.wizard.image_back_color_dynamic_dark = reader.read_t::<Color>()?;
             header.wizard.small_image_back_color_dynamic_dark = reader.read_t::<Color>()?;
 
-            if version >= 6.7 {
+            if version >= (6, 7) {
                 header.wizard.back_color_dynamic_dark = reader.read_t::<Color>()?;
             }
         }
@@ -305,7 +305,7 @@ impl Header {
         if version >= (6, 6, 1) {
             header.wizard.image_opacity = Some(reader.read_u8()?);
 
-            if version >= 6.7 {
+            if version >= (6, 7) {
                 header.wizard.back_image_opacity = Some(reader.read_u8()?);
                 header.wizard.light_control_setting =
                     Some(LightControlStyling::try_read_from_io(&mut reader)?);
@@ -325,7 +325,7 @@ impl Header {
         if (2..5).contains(&version) || (version.is_isx() && version >= (1, 3, 4)) {
             header.install_verbosity = InstallVerbosity::try_read_from_io(&mut reader)?;
         }
-        if version >= 1.3 {
+        if version >= (1, 3) {
             header.uninstall_log_mode = LogMode::try_read_from_io(&mut reader)?;
         }
         if version >= 5 {
@@ -351,7 +351,7 @@ impl Header {
         if version >= (3, 0, 4) || (version.is_isx() && version >= (3, 0, 3)) {
             header.privileges_required = PrivilegeLevel::try_read_from_io(&mut reader)?;
         }
-        if version >= 5.7 {
+        if version >= (5, 7) {
             header.privileges_required_overrides_allowed =
                 PrivilegesRequiredOverrides::from_bits_retain(reader.read_u8()?);
         }
@@ -380,7 +380,7 @@ impl Header {
                 StoredArchitecture::from_bits_retain(reader.read_u8()?).into();
             header.architectures_install_in_64_bit_mode =
                 StoredArchitecture::from_bits_retain(reader.read_u8()?).into();
-        } else if version < 5.1 {
+        } else if version < (5, 1) {
             header.architectures_allowed = StoredArchitecture::all().into();
             header.architectures_install_in_64_bit_mode = StoredArchitecture::all().into();
         }
@@ -392,7 +392,7 @@ impl Header {
             header.disable_dir_page = AutoBool::try_read_from_io(&mut reader)?;
             header.disable_program_group_page = AutoBool::try_read_from_io(&mut reader)?;
         }
-        if version >= 5.5 {
+        if version >= (5, 5) {
             header.uninstall_display_size = reader.read_u64::<LE>()?;
         } else if version >= (5, 3, 6) {
             header.uninstall_display_size = u64::from(reader.read_u32::<LE>()?);
@@ -421,7 +421,7 @@ impl Header {
             header.disable_program_group_page =
                 AutoBool::from_header_flags(&header.flags, HeaderFlags::DISABLE_PROGRAM_GROUP_PAGE);
         }
-        if version < 1.3 {
+        if version < (1, 3) {
             header.license_text =
                 reader.read_sized_decoded_pascal_string(license_size, WINDOWS_1252)?;
             header.info_before =
@@ -468,14 +468,14 @@ impl Header {
             if version >= (1, 3, 3) && version < (6, 4, 0, 1) => HeaderFlags::BACK_COLOR_HORIZONTAL,
             if ((1, 3, 10)..(6, 7, 0)).contains(&version) => HeaderFlags::USE_PREVIOUS_GROUP,
             if version >= (1, 3, 20) => HeaderFlags::UPDATE_UNINSTALL_LOG_APP_NAME,
-            if (version >= 2 || (version.is_isx() && version >= (1, 3, 10))) && version < 6.7 => HeaderFlags::USE_PREVIOUS_SETUP_TYPE,
+            if (version >= 2 || (version.is_isx() && version >= (1, 3, 10))) && version < (6, 7) => HeaderFlags::USE_PREVIOUS_SETUP_TYPE,
             if version >= 2 => [
                 HeaderFlags::DISABLE_READY_MEMO,
                 HeaderFlags::ALWAYS_SHOW_COMPONENTS_LIST,
                 HeaderFlags::FLAT_COMPONENTS_LIST,
                 HeaderFlags::SHOW_COMPONENT_SIZES,
             ],
-            if (2.0..6.7).contains(&version) => HeaderFlags::USE_PREVIOUS_TASKS,
+            if ((2, 0)..(6, 7)).contains(&version) => HeaderFlags::USE_PREVIOUS_TASKS,
             if version >= 2 => HeaderFlags::DISABLE_READY_PAGE,
             if version >= (2, 0, 7) => [
                 HeaderFlags::ALWAYS_SHOW_DIR_ON_READY_PAGE,
@@ -484,7 +484,7 @@ impl Header {
             if ((2, 0, 17)..(4, 1, 5)).contains(&version) => HeaderFlags::BZIP_USED,
             if version >= (2, 0, 18) => HeaderFlags::ALLOW_UNC_PATH,
             if version >= 3 => HeaderFlags::USER_INFO_PAGE,
-            if (3.0..6.7).contains(&version) => HeaderFlags::USE_PREVIOUS_USER_INFO,
+            if ((3, 0)..(6, 7)).contains(&version) => HeaderFlags::USE_PREVIOUS_USER_INFO,
             if version >= (3, 0, 1) => HeaderFlags::UNINSTALL_RESTART_COMPUTER,
             if version >= (3, 0, 3) => HeaderFlags::RESTART_IF_NEEDED_BY_RUN,
             if version >= 4 || (version.is_isx() && version >= (3, 0, 3)) => HeaderFlags::SHOW_TASKS_TREE_LINES,
@@ -513,24 +513,24 @@ impl Header {
                 HeaderFlags::APP_NAME_HAS_CONSTS,
                 HeaderFlags::USE_PREVIOUS_PRIVILEGES,
             ],
-            if (6.0..6.6).contains(&version) => HeaderFlags::WIZARD_RESIZABLE,
-            if version >= 6.3 => HeaderFlags::UNINSTALL_LOGGING,
-            if version >= 6.6 => [
+            if ((6, 0)..(6, 6)).contains(&version) => HeaderFlags::WIZARD_RESIZABLE,
+            if version >= (6, 3) => HeaderFlags::UNINSTALL_LOGGING,
+            if version >= (6, 6) => [
                 HeaderFlags::WIZARD_MODERN,
                 HeaderFlags::WIZARD_BORDER_STYLED,
                 HeaderFlags::WIZARD_KEEP_ASPECT_RATIO,
             ],
-            if (6.6..6.7).contains(&version) => HeaderFlags::WIZARD_LIGHT_BUTTONS_UNSTYLED,
-            if version >= 6.7 => [
+            if ((6, 6)..(6, 7)).contains(&version) => HeaderFlags::WIZARD_LIGHT_BUTTONS_UNSTYLED,
+            if version >= (6, 7) => [
                 HeaderFlags::REDIRECTION_GUARD,
                 HeaderFlags::WIZARD_BEVELS_HIDDEN,
             ],
-            pad if version >= 6.7 => 8,
+            pad if version >= (6, 7) => 8,
         ).map(|mut read_flags| {
             if version < (4, 0, 9) {
                 read_flags |= HeaderFlags::ALLOW_CANCEL_DURING_INSTALL;
             }
-            if version < 5.5 {
+            if version < (5, 5) {
                 read_flags |= HeaderFlags::ALLOW_NETWORK_DRIVE;
             }
             read_flags

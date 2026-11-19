@@ -59,7 +59,7 @@ impl Language {
             language.dialog_font.name = dialog_font;
         }
 
-        if version < 6.6
+        if version < (6, 6)
             && let Some(title_font) = reader.read_pascal_string()?
         {
             language.title_font = title_font;
@@ -69,7 +69,7 @@ impl Language {
             language.welcome_font = welcome_font;
         }
 
-        if version < 6.6
+        if version < (6, 6)
             && let Some(copyright_font) = reader.read_pascal_string()?
         {
             language.copyright_font = copyright_font;
@@ -93,7 +93,7 @@ impl Language {
             }
         }
 
-        language.id = if version >= 6.6 {
+        language.id = if version >= (6, 6) {
             reader.read_u16::<LE>()?.into()
         } else {
             reader.read_u32::<LE>()?
@@ -114,7 +114,7 @@ impl Language {
                 language.codepage = encoding;
             }
         } else {
-            if version < 5.3 {
+            if version < (5, 3) {
                 reader.read_u32::<LE>()?;
             }
             language.codepage = UTF_16LE;
@@ -130,11 +130,11 @@ impl Language {
 
         language.dialog_font.size = reader.read_u32::<LE>()?;
 
-        if version < 4.1 {
+        if version < (4, 1) {
             language.dialog_font.standard_height = reader.read_u32::<LE>()?;
         }
 
-        if version >= 6.6 {
+        if version >= (6, 6) {
             language.dialog_font.base_scale_height = reader.read_u32::<LE>()?;
             language.dialog_font.base_scale_width = reader.read_u32::<LE>()?;
         } else {
@@ -143,7 +143,7 @@ impl Language {
 
         language.welcome_font_size = reader.read_u32::<LE>()?;
 
-        if version < 6.6 {
+        if version < (6, 6) {
             language.copyright_font_size = reader.read_u32::<LE>()?;
         }
 

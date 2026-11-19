@@ -42,7 +42,7 @@ impl RunEntry {
     where
         R: io::Read,
     {
-        if version < 1.3 {
+        if version < (1, 3) {
             let _uncompressed_size = reader.read_u32::<LE>()?;
         }
 
@@ -98,9 +98,9 @@ impl RunEntry {
             ],
             if version >= (2, 0, 8) => RunFlags::HIDE_WIZARD,
             if version >= (5, 1, 10) && version < (7, 0, 0, 3) => [RunFlags::BITS_32, RunFlags::BITS_64],
-            if version >= 5.2 => RunFlags::RUN_AS_ORIGINAL_USER,
-            if version >= 6.1 => RunFlags::DONT_LOG_PARAMETERS,
-            if version >= 6.3 => RunFlags::LOG_OUTPUT,
+            if version >= (5, 2) => RunFlags::RUN_AS_ORIGINAL_USER,
+            if version >= (6, 1) => RunFlags::DONT_LOG_PARAMETERS,
+            if version >= (6, 3) => RunFlags::LOG_OUTPUT,
         )?;
 
         if run_entry.bitness == Bitness::Bit32 {

@@ -27,7 +27,7 @@ impl Ini {
     where
         R: io::Read,
     {
-        if version < 1.3 {
+        if version < (1, 3) {
             let _uncompressed_size = reader.read_u32::<LE>()?;
         }
 

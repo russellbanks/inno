@@ -34,25 +34,25 @@ impl EncryptionHeader {
     where
         R: Read,
     {
-        let crc32 = if version >= 6.5 {
+        let crc32 = if version >= (6, 5) {
             reader.read_u32::<LE>()?
         } else {
             0
         };
 
-        let mut reader = if version >= 6.5 {
+        let mut reader = if version >= (6, 5) {
             EncryptionHeaderReader::CRC32(Crc32Reader::new(&mut reader))
         } else {
             EncryptionHeaderReader::None(&mut reader)
         };
 
         let mut encryption_header = Self {
-            encryption_use: if version >= 6.5 {
+            encryption_use: if version >= (6, 5) {
                 EncryptionUse::try_read_from_io(&mut reader)?
             } else {
                 EncryptionUse::None
             },
-            password_test: if version < 6.5 {
+            password_test: if version < (6, 5) {
                 reader.read_u32::<LE>()?
             } else {
                 0
@@ -62,7 +62,7 @@ impl EncryptionHeader {
             base_nonce: reader.read_t::<EncryptionNonce>()?,
         };
 
-        if version >= 6.5 {
+        if version >= (6, 5) {
             encryption_header.password_test = reader.read_u32::<LE>()?;
         }
 

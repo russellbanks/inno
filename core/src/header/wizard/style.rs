@@ -27,7 +27,7 @@ impl WizardStyle {
     {
         let value = reader.read_u8()?;
 
-        if version >= 6.6 {
+        if version >= (6, 6) {
             match value {
                 0 => return Ok(Self::Light),
                 1 => return Ok(Self::Dark),

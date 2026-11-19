@@ -31,7 +31,7 @@ impl Directory {
     where
         R: io::Read,
     {
-        if version < 1.3 {
+        if version < (1, 3) {
             let _uncompressed_size = reader.read_u32::<LE>()?;
         }
 
@@ -52,7 +52,7 @@ impl Directory {
 
         WindowsVersionRange::read_from(&mut reader, version)?;
 
-        if version >= 4.1 {
+        if version >= (4, 1) {
             directory.permission = reader.read_i16::<LE>()?;
         }
 

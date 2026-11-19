@@ -78,11 +78,11 @@ impl FileLocation {
 
         let uncompressed_size = file.size;
 
-        file.checksum = if version >= 6.4 {
+        file.checksum = if version >= (6, 4) {
             Checksum::read_sha256(&mut reader)?
         } else if version >= (5, 3, 9) {
             Checksum::read_sha1(&mut reader)?
-        } else if version >= 4.2 {
+        } else if version >= (4, 2) {
             Checksum::read_md5(&mut reader)?
         } else if version >= (4, 0, 1) {
             Checksum::read_crc32(&mut reader)?
@@ -119,7 +119,7 @@ impl FileLocation {
             if version >= (4, 2, 2) => FileLocationFlags::CHUNK_ENCRYPTED,
             if version >= (4, 2, 5) => FileLocationFlags::CHUNK_COMPRESSED,
             if ((5, 1, 13)..(6, 4, 3)).contains(&version) => FileLocationFlags::SOLID_BREAK,
-            if version >= (5, 5, 7) && version < 6.3 => [
+            if version >= (5, 5, 7) && version < (6, 3) => [
                 FileLocationFlags::SIGN,
                 FileLocationFlags::SIGN_ONCE
             ]
@@ -147,7 +147,7 @@ impl FileLocation {
         }
 
         chunk.encryption = if options.contains(FileLocationFlags::CHUNK_ENCRYPTED) {
-            if version >= 6.4 {
+            if version >= (6, 4) {
                 Encryption::XChaCha20
             } else if version >= (5, 3, 9) {
                 Encryption::Arc4Sha1
@@ -160,7 +160,7 @@ impl FileLocation {
 
         file.compression_filter = if options.contains(FileLocationFlags::CALL_INSTRUCTION_OPTIMIZED)
         {
-            if version < 5.2 {
+            if version < (5, 2) {
                 CompressionFilter::InstructionFilter4108
             } else if version < (5, 3, 9) {
                 CompressionFilter::InstructionFilter5200

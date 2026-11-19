@@ -53,7 +53,7 @@ impl File {
     where
         R: io::Read,
     {
-        if version < 1.3 {
+        if version < (1, 3) {
             let _uncompressed_size = reader.read_u32::<LE>()?;
         }
 
@@ -70,7 +70,7 @@ impl File {
 
         Condition::read(&mut reader, codepage, version)?;
 
-        if version >= 6.5 {
+        if version >= (6, 5) {
             file.excludes = reader.read_decoded_pascal_string(codepage)?;
             file.download_is_sig_source = reader.read_decoded_pascal_string(codepage)?;
             file.download_user_name = reader.read_decoded_pascal_string(codepage)?;
@@ -93,7 +93,7 @@ impl File {
             file.flags |= FileFlags::from(FileCopyMode::try_read_from_io(&mut reader)?);
         }
 
-        if version >= 4.1 {
+        if version >= (4, 1) {
             file.permission = reader.read_i16::<LE>()?;
         }
 
@@ -133,16 +133,16 @@ impl File {
             if version >= (4, 2, 1) => FileFlags::REPLACE_SAME_VERSION_IF_CONTENTS_DIFFER,
             if version >= (4, 2, 5) => FileFlags::DONT_VERIFY_CHECKSUM,
             if version >= (5, 0, 3) => FileFlags::UNINS_NO_SHARED_FILE_PROMPT,
-            if version >= 5.1 => FileFlags::CREATE_ALL_SUB_DIRS,
+            if version >= (5, 1) => FileFlags::CREATE_ALL_SUB_DIRS,
             if version >= (5, 1, 2) && version < (7, 0, 0, 3) => FileFlags::BITS_32, FileFlags::BITS_64,
-            if version >= 5.2 => [
+            if version >= (5, 2) => [
                 FileFlags::EXTERNAL_SIZE_PRESET,
                 FileFlags::SET_NTFS_COMPRESSION,
                 FileFlags::UNSET_NTFS_COMPRESSION,
             ],
             if version >= (5, 2, 5) => FileFlags::GAC_INSTALL,
-            if version >= 6.5 => [FileFlags::DOWNLOAD, FileFlags::EXTRACT_ARCHIVE],
-            pad if version >= 6.7 => 8,
+            if version >= (6, 5) => [FileFlags::DOWNLOAD, FileFlags::EXTRACT_ARCHIVE],
+            pad if version >= (6, 7) => 8,
         )?;
 
         if file.bitness == Bitness::Bit32 {

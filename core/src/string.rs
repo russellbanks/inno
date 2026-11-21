@@ -23,6 +23,14 @@ impl PascalString {
         Self::read_sized(reader, length)
     }
 
+    /// Reads `size` bytes as an undecoded string, or returns `None` if `size` is 0.
+    ///
+    /// # Errors
+    ///
+    /// Returns any error from the reader, including [`io::ErrorKind::UnexpectedEof`] if it ends
+    /// before `size` bytes. The buffer only grows as bytes arrive, so a `size` larger than the
+    /// input fails with [`io::ErrorKind::UnexpectedEof`] instead of allocating `size` bytes up
+    /// front.
     pub fn read_sized<R>(mut reader: R, size: u32) -> io::Result<Option<Self>>
     where
         R: io::Read,
@@ -31,10 +39,7 @@ impl PascalString {
             return Ok(None);
         }
 
-        let mut buffer = vec![0; size as usize];
-        reader.read_exact(&mut buffer)?;
-
-        Ok(Some(Self::Bytes(buffer)))
+        Ok(Some(Self::Bytes(reader.read_exact_vec(size as usize)?)))
     }
 
     pub fn read_decoded<R>(reader: R, codepage: &'static Encoding) -> io::Result<Option<Self>>
@@ -143,5 +148,37 @@ impl fmt::Display for PascalString {
 impl From<&str> for PascalString {
     fn from(s: &str) -> Self {
         Self::Utf8(s.to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use super::PascalString;
+
+    #[test]
+    fn read_sized_reads_size_bytes() {
+        let string = PascalString::read_sized(b"Inno Setup".as_slice(), 4).unwrap();
+
+        assert_eq!(string, Some(PascalString::Bytes(b"Inno".to_vec())));
+    }
+
+    #[test]
+    fn read_sized_of_zero_bytes_is_none() {
+        assert_eq!(
+            PascalString::read_sized(b"Inno".as_slice(), 0).unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn read_with_a_length_longer_than_the_input_is_unexpected_eof() {
+        let mut bytes = u32::MAX.to_le_bytes().to_vec();
+        bytes.extend_from_slice(b"Inno");
+
+        let error = PascalString::read(bytes.as_slice()).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
     }
 }

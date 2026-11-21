@@ -5,6 +5,9 @@ use zerocopy::{ByteOrder, FromBytes, I16, I32, I64, LE, LittleEndian, U16, U32, 
 
 use crate::string::PascalString;
 
+/// How many bytes [`ReadBytesExt::read_exact_vec`] reads at a time, the same as innoextract.
+const CHUNK_SIZE: usize = 10 * 1024;
+
 /// Extends [`Read`] with methods for reading numbers. (For `std::io`.)
 ///
 /// Most of the methods defined here have an unconstrained type parameter that
@@ -114,6 +117,33 @@ pub trait ReadBytesExt: Read {
         I64::<T>::read_from_io(self).map(I64::get)
     }
 
+    /// Reads exactly `len` bytes into a new [`Vec`].
+    ///
+    /// `len` usually comes from the installer, so it is not trusted for the allocation: a damaged
+    /// or hostile installer can claim gigabytes while holding only a few bytes. Like innoextract's
+    /// [`binary_string::load`], this reads [`CHUNK_SIZE`] bytes at a time. Unlike innoextract, it
+    /// stops with an error as soon as the input ends, so the buffer only grows as bytes actually
+    /// arrive, instead of being padded out to `len`.
+    ///
+    /// # Errors
+    ///
+    /// This method returns the same errors as [`Read::read_exact`], including
+    /// [`io::ErrorKind::UnexpectedEof`] if the reader ends before `len` bytes.
+    ///
+    /// [`binary_string::load`]: https://github.com/dscharrer/innoextract/blob/1.9/src/util/load.cpp#L29-L45
+    /// [`Read::read_exact`]: https://doc.rust-lang.org/std/io/trait.Read.html#method.read_exact
+    fn read_exact_vec(&mut self, len: usize) -> Result<Vec<u8>> {
+        let mut buffer = Vec::new();
+
+        while buffer.len() < len {
+            let filled = buffer.len();
+            buffer.resize(filled + (len - filled).min(CHUNK_SIZE), 0);
+            self.read_exact(&mut buffer[filled..])?;
+        }
+
+        Ok(buffer)
+    }
+
     /// Reads a UCSD Pascal-style string from the underlying reader.
     ///
     /// Assumes the string is prefixed with a 32-bit length and encoded in the specified codepage.
@@ -144,10 +174,7 @@ pub trait ReadBytesExt: Read {
     fn read_raw_pascal_string(&mut self) -> Result<Vec<u8>> {
         let length = self.read_u32::<LittleEndian>()?;
 
-        let mut buffer = vec![0; length as usize];
-        self.read_exact(&mut buffer)?;
-
-        Ok(buffer)
+        self.read_exact_vec(length as usize)
     }
 
     /// Discards a UCSD Pascal-style string from the underlying reader.
@@ -163,3 +190,49 @@ pub trait ReadBytesExt: Read {
 
 /// All types that implement `Read` get methods defined in `ReadBytesExt` for free.
 impl<R: Read + ?Sized> ReadBytesExt for R {}
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use super::{CHUNK_SIZE, ReadBytesExt};
+
+    #[test]
+    fn read_exact_vec_reads_only_len_bytes() {
+        let mut reader = b"Inno Setup".as_slice();
+
+        assert_eq!(reader.read_exact_vec(4).unwrap(), b"Inno");
+        assert_eq!(reader, b" Setup");
+    }
+
+    #[test]
+    fn read_exact_vec_of_zero_bytes_reads_nothing() {
+        let mut reader = b"Inno".as_slice();
+
+        assert_eq!(reader.read_exact_vec(0).unwrap(), b"");
+        assert_eq!(reader, b"Inno");
+    }
+
+    #[test]
+    fn read_exact_vec_reads_across_chunks() {
+        // Three whole chunks, then part of a fourth
+        let data = b"Inno Setup".repeat(3 * CHUNK_SIZE / 10 + 1);
+
+        assert_eq!(data.as_slice().read_exact_vec(data.len()).unwrap(), data);
+    }
+
+    #[test]
+    fn read_exact_vec_past_the_end_is_unexpected_eof() {
+        let error = b"Inno".as_slice().read_exact_vec(5).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
+    }
+
+    #[test]
+    fn read_exact_vec_does_not_allocate_len_up_front() {
+        // Allocating `usize::MAX` bytes before reading would panic with "capacity overflow"
+        let error = b"Inno".as_slice().read_exact_vec(usize::MAX).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
+    }
+}
